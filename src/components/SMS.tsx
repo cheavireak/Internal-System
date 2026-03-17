@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Save, Send, History, Settings, MessageSquare, Search, ChevronLeft, ChevronRight, Copy, Trash2, AlertTriangle } from "lucide-react";
+import { Save, Send, History, Settings, MessageSquare, Search, ChevronLeft, ChevronRight, Copy, Trash2, AlertTriangle, Eye, EyeOff, ChevronUp, ChevronDown } from "lucide-react";
 
 export default function SMS() {
   const [activeTab, setActiveTab] = useState<'send' | 'logs' | 'config'>('send');
@@ -11,6 +11,8 @@ export default function SMS() {
   const [configMessage, setConfigMessage] = useState("");
   const [configTab, setConfigTab] = useState<'standard' | 'test'>('standard');
   const [gatewayToDelete, setGatewayToDelete] = useState<number | null>(null);
+  const [hiddenGateways, setHiddenGateways] = useState<number[]>([]);
+  const [isGatewaysVisible, setIsGatewaysVisible] = useState(true);
 
   // Send state
   const [sendRoute, setSendRoute] = useState<'standard' | 'test'>('standard');
@@ -40,6 +42,12 @@ export default function SMS() {
       fetchLogs();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (hiddenGateways.includes(testConfig.gateways.indexOf(gateway))) {
+      setGateway("");
+    }
+  }, [hiddenGateways, testConfig.gateways]);
 
   const fetchConfig = async () => {
     try {
@@ -199,7 +207,7 @@ export default function SMS() {
   }, [searchQuery, dateFilter]);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
           <MessageSquare className="mr-2 h-6 w-6 text-indigo-600 dark:text-indigo-400" />
@@ -283,9 +291,12 @@ export default function SMS() {
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
                     >
                       <option value="" disabled>Select a gateway</option>
-                      {testConfig.gateways.map((gw, idx) => (
-                        <option key={idx} value={gw}>{gw}</option>
-                      ))}
+                      {testConfig.gateways
+                        .map((gw, idx) => ({ gw, idx }))
+                        .filter(({ idx }) => !hiddenGateways.includes(idx))
+                        .map(({ gw, idx }) => (
+                          <option key={idx} value={gw}>{gw}</option>
+                        ))}
                     </select>
                   </div>
                 )}
@@ -630,38 +641,62 @@ export default function SMS() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gateways</label>
-                      <div className="space-y-2">
-                        {testConfig.gateways.map((gw, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={gw}
-                              onChange={(e) => {
-                                const newGateways = [...testConfig.gateways];
-                                newGateways[idx] = e.target.value;
-                                setTestConfig({ ...testConfig, gateways: newGateways });
-                              }}
-                              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setGatewayToDelete(idx)}
-                              className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors"
-                              title="Delete Gateway"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => setTestConfig({ ...testConfig, gateways: [...testConfig.gateways, ""] })}
-                          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-sm font-medium"
-                        >
-                          + Add Gateway
-                        </button>
+                      <div
+                        className="flex items-center justify-between cursor-pointer mb-1"
+                        onClick={() => setIsGatewaysVisible(!isGatewaysVisible)}
+                      >
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Gateways
+                        </label>
+                        {isGatewaysVisible ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                       </div>
+                      {isGatewaysVisible && (
+                        <div className="space-y-2">
+                          {testConfig.gateways.map((gw, idx) => (
+                            <div key={idx} className={`flex items-center gap-2 ${hiddenGateways.includes(idx) ? 'opacity-50' : ''}`}>
+                              <input
+                                type="text"
+                                value={gw}
+                                onChange={(e) => {
+                                  const newGateways = [...testConfig.gateways];
+                                  newGateways[idx] = e.target.value;
+                                  setTestConfig({ ...testConfig, gateways: newGateways });
+                                }}
+                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (hiddenGateways.includes(idx)) {
+                                    setHiddenGateways(hiddenGateways.filter(i => i !== idx));
+                                  } else {
+                                    setHiddenGateways([...hiddenGateways, idx]);
+                                  }
+                                }}
+                                className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md transition-colors"
+                                title={hiddenGateways.includes(idx) ? "Show Gateway" : "Hide Gateway"}
+                              >
+                                {hiddenGateways.includes(idx) ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setGatewayToDelete(idx)}
+                                className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors"
+                                title="Delete Gateway"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setTestConfig({ ...testConfig, gateways: [...testConfig.gateways, ""] })}
+                            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-sm font-medium"
+                          >
+                            + Add Gateway
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

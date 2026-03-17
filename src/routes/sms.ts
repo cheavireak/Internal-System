@@ -196,7 +196,7 @@ router.post("/send-test", authenticate, async (req: any, res) => {
     const resultText = await response.text();
     
     // Assuming 200 OK means success for this test route, or we can just log it
-    if (response.ok) {
+    if (response.ok && !resultText.includes("ERROR")) {
       const messageId = resultText || `TEST-${Date.now()}`;
       const smsParts = calculateSmsParts(smstext);
       const time = new Date().toISOString();
