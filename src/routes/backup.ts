@@ -1,0 +1,174 @@
+import express from "express";
+import * as dbModule from "../db.js";
+import { authenticate, requireAdmin } from "../middleware/auth.js";
+import fs from "fs";
+import path from "path";
+import multer from "multer";
+import { logAction } from "../utils/audit.js";
+import { getClientIp } from "../utils/ip.js";
+
+const router = express.Router();
+const BACKUP_DIR = path.join(process.cwd(), "Backup_data");
+
+// Ensure backup directory exists
+if (!fs.existsSync(BACKUP_DIR)) {
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, BACKUP_DIR);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `uploaded_backup_${Date.now()}.sqlite`);
+  }
+});
+const upload = multer({ storage });
+
+// Get list of backups
+router.get("/", authenticate, requireAdmin, (req, res) => {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(file => file.endsWith('.sqlite'))
+      .map(file => {
+        const stats = fs.statSync(path.join(BACKUP_DIR, file));
+        return {
+          name: file,
+          size: stats.size,
+          createdAt: stats.mtime
+        };
+      })
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    res.json(files);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new backup or overwrite an existing one
+router.post("/create", authenticate, requireAdmin, async (req: any, res) => {
+  try {
+    const { filename: providedFilename } = req.body;
+    let filename = providedFilename;
+
+    if (!filename) {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      filename = `backup_${timestamp}.sqlite`;
+    }
+
+    const backupPath = path.join(BACKUP_DIR, filename);
+    
+    await dbModule.db.backup(backupPath);
+    
+    const actionMsg = providedFilename ? `Overwrote backup: ${filename}` : `Created backup: ${filename}`;
+    logAction(providedFilename ? 'update' : 'create', 'backup', null, actionMsg, req.user.id, req.user.name, getClientIp(req));
+    res.json({ success: true, message: actionMsg, file: filename });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Restore from a backup
+router.post("/restore", authenticate, requireAdmin, async (req: any, res) => {
+  const { filename } = req.body;
+  if (!filename) {
+    return res.status(400).json({ error: "Filename is required" });
+  }
+
+  const backupPath = path.join(BACKUP_DIR, filename);
+  if (!fs.existsSync(backupPath)) {
+    return res.status(404).json({ error: "Backup file not found" });
+  }
+
+  try {
+    const stats = fs.statSync(backupPath);
+    console.log("DEBUG: Backup file size:", stats.size);
+    
+    // Get the current user before restoring
+    const currentUser = dbModule.db.prepare("SELECT * FROM users WHERE email = ?").get((req as any).user.email) as any;
+    console.log("DEBUG: Current user before restore:", currentUser ? currentUser.email : "null");
+    
+    dbModule.restoreDatabase(backupPath);
+    console.log("DEBUG: Database restored.");
+    
+    // Check if data exists
+    const count = dbModule.db.prepare("SELECT COUNT(*) as count FROM customers").get() as any;
+    console.log("DEBUG: Customer count after restore:", count.count);
+    
+    // Ensure the user who initiated the restore is still in the restored database with their exact permissions
+    if (currentUser) {
+      const userInNewDb = dbModule.db.prepare("SELECT * FROM users WHERE email = ?").get(currentUser.email) as any;
+      console.log("DEBUG: User in new DB:", userInNewDb ? userInNewDb.email : "null");
+
+      if (userInNewDb) {
+        console.log("DEBUG: Updating user in new DB.");
+        dbModule.db.prepare("UPDATE users SET is_superadmin = ?, role = ?, permissions = ?, name = ? WHERE email = ?").run(
+          currentUser.is_superadmin,
+          currentUser.role,
+          currentUser.permissions,
+          currentUser.name,
+          currentUser.email
+        );
+      } else {
+        console.log("DEBUG: Inserting user into new DB.");
+        dbModule.db.prepare("INSERT INTO users (email, password_hash, role, name, permissions, is_superadmin) VALUES (?, ?, ?, ?, ?, ?)").run(
+          currentUser.email, 
+          currentUser.password_hash, 
+          currentUser.role, 
+          currentUser.name, 
+          currentUser.permissions,
+          currentUser.is_superadmin
+        );
+      }
+    }
+    
+    logAction('restore', 'backup', null, `Restored database from: ${filename}`, req.user.id, req.user.name, getClientIp(req));
+    res.json({ success: true, message: "Database restored successfully." });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Download a backup file
+router.get("/download/:filename", authenticate, requireAdmin, (req: any, res) => {
+  const { filename } = req.params;
+  const backupPath = path.join(BACKUP_DIR, filename);
+  
+  if (!fs.existsSync(backupPath)) {
+    return res.status(404).json({ error: "Backup file not found" });
+  }
+
+  logAction('download', 'backup', null, `Downloaded backup: ${filename}`, req.user.id, req.user.name, getClientIp(req));
+  res.download(backupPath);
+});
+
+// Upload a backup file
+router.post("/upload", authenticate, requireAdmin, upload.single("file"), (req: any, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+  logAction('upload', 'backup', null, `Uploaded backup: ${req.file.filename}`, req.user.id, req.user.name, getClientIp(req));
+  res.json({ success: true, message: "Backup uploaded successfully", file: req.file.filename });
+});
+
+// Delete a backup
+router.delete("/:filename", authenticate, requireAdmin, (req: any, res) => {
+  const { filename } = req.params;
+  const backupPath = path.join(BACKUP_DIR, filename);
+  
+  if (!fs.existsSync(backupPath)) {
+    return res.status(404).json({ error: "Backup file not found" });
+  }
+
+  try {
+    fs.unlinkSync(backupPath);
+    logAction('delete', 'backup', null, `Deleted backup: ${filename}`, req.user.id, req.user.name, getClientIp(req));
+    res.json({ success: true, message: "Backup deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;

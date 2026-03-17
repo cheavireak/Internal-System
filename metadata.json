@@ -1,0 +1,5 @@
+{
+  "name": "Internal CRM System",
+  "description": "Internal CRM system with pipelines, weekly reporting, and Excel import/export.",
+  "requestFramePermissions": []
+}
