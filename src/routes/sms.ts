@@ -186,11 +186,13 @@ router.post("/send-test", authenticate, async (req: any, res) => {
     params.append('gateway', gateway);
     params.append('message', smstext);
 
-    // Using GET method as requested
-    const requestUrl = `${config.url}?${params.toString()}`;
-    
-    const response = await fetch(requestUrl, {
-      method: 'GET'
+    // Using POST method as per working implementation
+    const response = await fetch(config.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString()
     });
 
     const resultText = await response.text();
