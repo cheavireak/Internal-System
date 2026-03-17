@@ -1,6 +1,7 @@
 import { Request } from 'express';
 
 export function getClientIp(req: Request): string {
+  console.log("DEBUG: All Headers:", JSON.stringify(req.headers));
   const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
   let clientIp = Array.isArray(rawIp) ? rawIp[0] : (typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : '');
   
