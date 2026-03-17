@@ -207,7 +207,7 @@ export default function SMS() {
   }, [searchQuery, dateFilter]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-[95%] mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
           <MessageSquare className="mr-2 h-6 w-6 text-indigo-600 dark:text-indigo-400" />
@@ -426,7 +426,7 @@ export default function SMS() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                               {log.phone_number}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-md truncate" title={log.content}>
+                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 min-w-[300px] max-w-2xl whitespace-normal break-words">
                               {log.content}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
