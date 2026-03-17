@@ -17,10 +17,18 @@ router.post("/login", (req, res) => {
     const clientIp = getClientIp(req);
     console.log("DEBUG: Login attempt from IP:", clientIp);
 
-    // Check if IP is blocked (15 minutes)
-    const isBlocked = db.prepare("SELECT * FROM blocked_ips WHERE ip = ? AND blocked_at > datetime('now', '-15 minutes')").get(clientIp);
+    // Clean up expired blocks
+    db.prepare("DELETE FROM blocked_ips WHERE blocked_at <= datetime('now', '-15 minutes')").run();
+
+    // Check if IP is blocked
+    const isBlocked = db.prepare("SELECT *, (strftime('%s', 'now') - strftime('%s', blocked_at)) as elapsed FROM blocked_ips WHERE ip = ?").get(clientIp) as any;
     if (isBlocked) {
-      return res.status(401).json({ error: "IP_BLOCKED", message: "Your IP has been blocked due to too many failed attempts. Please try again in 15 minutes." });
+      const remainingSeconds = 900 - isBlocked.elapsed; // 15 mins = 900 seconds
+      const remainingMinutes = Math.max(1, Math.ceil(remainingSeconds / 60));
+      return res.status(401).json({ 
+        error: "IP_BLOCKED", 
+        message: `Your IP has been blocked due to too many failed attempts. Please try again in ${remainingMinutes} minutes.` 
+      });
     }
 
     const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
