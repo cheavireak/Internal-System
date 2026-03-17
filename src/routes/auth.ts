@@ -15,12 +15,15 @@ router.post("/login", (req, res) => {
     
     // Get Client IP
     const clientIp = getClientIp(req);
+    console.log("DEBUG: Login attempt from IP:", clientIp);
 
+    /*
     // Check if IP is blocked (15 minutes)
     const isBlocked = db.prepare("SELECT * FROM blocked_ips WHERE ip = ? AND blocked_at > datetime('now', '-15 minutes')").get(clientIp);
     if (isBlocked) {
       return res.status(401).json({ error: "IP_BLOCKED", message: "Your IP has been blocked due to too many failed attempts. Please try again in 15 minutes." });
     }
+    */
 
     const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
 
@@ -35,11 +38,13 @@ router.post("/login", (req, res) => {
       
       // Check if limit reached
       const recentAttempts = db.prepare("SELECT COUNT(*) as count FROM login_attempts WHERE ip = ? AND timestamp >= datetime('now', '-15 seconds')").get(clientIp) as {count: number};
+      /*
       if (recentAttempts.count >= 5) {
         db.prepare("INSERT OR REPLACE INTO blocked_ips (ip, blocked_at) VALUES (?, datetime('now'))").run(clientIp);
         logAction('block', 'ip', clientIp, `IP blocked due to 5 failed login attempts in 15s`, null, 'System', clientIp);
         return res.status(401).json({ error: "IP_BLOCKED", message: "Your IP has been blocked due to too many failed attempts. Please try again in 15 minutes." });
       }
+      */
       
       return res.status(401).json({ error: "Invalid credentials" });
     };
