@@ -28,7 +28,12 @@ export const authenticate = async (req: any, res: any, next: any) => {
       if (user.permissions) {
         const parsed = JSON.parse(user.permissions);
         if (Array.isArray(parsed)) {
-          permissions = { ...defaultPermissions, menus: parsed };
+          // If it's an empty array, use default permissions instead of wiping everything
+          if (parsed.length === 0) {
+            permissions = defaultPermissions;
+          } else {
+            permissions = { ...defaultPermissions, menus: parsed };
+          }
         } else {
           permissions = parsed;
         }
@@ -36,8 +41,18 @@ export const authenticate = async (req: any, res: any, next: any) => {
         permissions = defaultPermissions;
       }
       
-      // Enforce admin permissions
-      if (user.role === 'admin' || user.is_superadmin) {
+      // Enforce admin/superadmin permissions
+      if (user.is_superadmin) {
+        permissions.menus = ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'Reports', 'InternalReports', 'SMS', 'AdminPanel', 'AuditLogs'];
+        permissions.can_create = true;
+        permissions.can_edit = true;
+        permissions.can_delete = true;
+        permissions.can_move = true;
+        permissions.can_import = true;
+        permissions.can_export = true;
+        permissions.can_manage_columns = true;
+        permissions.can_delete_audit_logs = true;
+      } else if (user.role === 'admin') {
         if (!permissions.menus) permissions.menus = [];
         if (!permissions.menus.includes('AdminPanel')) permissions.menus.push('AdminPanel');
         if (!permissions.menus.includes('AuditLogs')) permissions.menus.push('AuditLogs');
