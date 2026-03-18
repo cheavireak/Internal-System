@@ -139,11 +139,12 @@ router.post("/send", authenticate, async (req: any, res) => {
       const messageId = resultText; // Store the whole return value or extract ID
       const smsParts = calculateSmsParts(smstext);
       const time = new Date().toISOString();
+      const route = 'no gateway';
       
       await db.prepare(`
-        INSERT INTO sms_logs (time, content, phone_number, message_id, sms_parts, sender)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(time, smstext, gsm, messageId, smsParts, sender);
+        INSERT INTO sms_logs (time, content, phone_number, message_id, sms_parts, sender, route)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(time, smstext, gsm, messageId, smsParts, sender, route);
       
       logAction('send', 'sms', null, `Sent SMS to ${gsm}`, req.user.id, req.user.name, getClientIp(req));
       
@@ -202,11 +203,12 @@ router.post("/send-test", authenticate, async (req: any, res) => {
       const messageId = resultText || `TEST-${Date.now()}`;
       const smsParts = calculateSmsParts(smstext);
       const time = new Date().toISOString();
+      const route = gateway;
       
       await db.prepare(`
-        INSERT INTO sms_logs (time, content, phone_number, message_id, sms_parts, sender)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(time, smstext, gsm, messageId, smsParts, sender);
+        INSERT INTO sms_logs (time, content, phone_number, message_id, sms_parts, sender, route)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(time, smstext, gsm, messageId, smsParts, sender, route);
       
       logAction('send', 'sms_test', null, `Sent Test SMS to ${gsm} via ${gateway}`, req.user.id, req.user.name, getClientIp(req));
       

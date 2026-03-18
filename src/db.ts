@@ -110,6 +110,14 @@ export async function initSchema() {
     if (fs.existsSync(schemaPath)) {
       const schemaSql = fs.readFileSync(schemaPath, 'utf8');
       await pool.query(schemaSql);
+      
+      // Add route column to sms_logs if it doesn't exist
+      try {
+        await pool.query('ALTER TABLE sms_logs ADD COLUMN IF NOT EXISTS route VARCHAR(100) DEFAULT \'no gateway\'');
+      } catch (e) {
+        console.warn('Could not add route column to sms_logs:', e);
+      }
+      
       console.log("PostgreSQL schema initialized successfully.");
     } else {
       console.log("schema.sql not found, skipping schema initialization.");

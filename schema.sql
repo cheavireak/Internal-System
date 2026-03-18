@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS sms_logs (
   phone_number VARCHAR(50),
   message_id VARCHAR(255),
   sms_parts INTEGER,
-  sender VARCHAR(100)
+  sender VARCHAR(100),
+  route VARCHAR(100)
 );
 
 CREATE TABLE IF NOT EXISTS blocked_ips (
