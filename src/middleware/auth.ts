@@ -26,7 +26,7 @@ export const authenticate = (req: any, res: any, next: any) => {
       };
       
       // Enforce admin permissions
-      if (user.role === 'admin') {
+      if (user.role === 'admin' || user.is_superadmin) {
         if (!permissions.menus) permissions.menus = [];
         if (!permissions.menus.includes('AdminPanel')) permissions.menus.push('AdminPanel');
         if (!permissions.menus.includes('AuditLogs')) permissions.menus.push('AuditLogs');
@@ -66,6 +66,7 @@ export const authenticate = (req: any, res: any, next: any) => {
 };
 
 export const requireAdmin = (req: any, res: any, next: any) => {
+  if (req.user.is_superadmin) return next();
   if (req.user.role === "user") {
     return res.status(401).json({ error: "Access denied" });
   }

@@ -175,8 +175,8 @@ export default function App() {
               <Route path="/internal-reports/create" element={<CreateEditInternalReport />} />
               <Route path="/internal-reports/edit/:id" element={<CreateEditInternalReport />} />
               {user?.permissions?.menus?.includes('SMS') && <Route path="/sms" element={<SMS />} />}
-              {user?.permissions?.menus?.includes('AdminPanel') && user?.role !== 'user' && <Route path="/admin" element={<AdminPanel currentUser={user} />} />}
-              {user?.permissions?.menus?.includes('AuditLogs') && user?.role !== 'user' && <Route path="/audit-logs" element={<AuditLogs user={user} />} />}
+              {(user?.is_superadmin || (user?.permissions?.menus?.includes('AdminPanel') && user?.role !== 'user')) && <Route path="/admin" element={<AdminPanel currentUser={user} />} />}
+              {(user?.is_superadmin || (user?.permissions?.menus?.includes('AuditLogs') && user?.role !== 'user')) && <Route path="/audit-logs" element={<AuditLogs user={user} />} />}
               {(user?.is_superadmin || user?.role === 'admin') && <Route path="/settings" element={<Settings currentUser={user} refreshHiddenMenus={refreshHiddenMenus} hiddenMenus={hiddenMenus} sessionTimeout={sessionTimeout} setSessionTimeout={setSessionTimeout} />} />}
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
@@ -266,7 +266,7 @@ function Sidebar({ user, setToken, isOpen, setIsOpen, isDarkMode, setIsDarkMode,
             </button>
           );
         })}
-        {user?.permissions?.menus?.includes('AdminPanel') && user?.role !== 'user' && !hiddenMenus.includes('AdminPanel') && (
+        {(user?.is_superadmin || (user?.permissions?.menus?.includes('AdminPanel') && user?.role !== 'user')) && !hiddenMenus.includes('AdminPanel') && (
           <button
             onClick={() => navigate("/admin")}
             className={cn(
@@ -278,7 +278,7 @@ function Sidebar({ user, setToken, isOpen, setIsOpen, isDarkMode, setIsDarkMode,
             Admin Panel
           </button>
         )}
-        {user?.permissions?.menus?.includes('AuditLogs') && user?.role !== 'user' && !hiddenMenus.includes('AuditLogs') && (
+        {(user?.is_superadmin || (user?.permissions?.menus?.includes('AuditLogs') && user?.role !== 'user')) && !hiddenMenus.includes('AuditLogs') && (
           <button
             onClick={() => navigate("/audit-logs")}
             className={cn(

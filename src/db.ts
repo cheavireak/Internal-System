@@ -1,14 +1,19 @@
 import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export const pool = new Pool({
-  user: 'your_username',
-  host: 'localhost',
-  database: 'internal-system',
-  password: 'your_password',
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
+
+console.log("DEBUG: DATABASE_URL is set:", !!process.env.DATABASE_URL);
+if (!process.env.DATABASE_URL) {
+  console.error("DEBUG: DATABASE_URL is NOT set!");
+}
 
 // Helper to convert SQLite ? to Postgres $1, $2
 function convertSql(sql: string) {
