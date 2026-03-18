@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Edit2, Trash2, Save, X, Upload, ArrowRight, Copy, Settings, Eye, EyeOff, ArrowUp, ArrowDown, Clock, ChevronLeft, ChevronRight, Minus } from "lucide-react";
 import * as xlsx from "xlsx";
+import { format, parseISO, isValid, differenceInDays } from "date-fns";
 import TrashModal from "./TrashModal";
 import CustomerTimeline from "./CustomerTimeline";
 import { useToast } from "../contexts/ToastContext";
@@ -76,6 +77,17 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [editingColumnIndex, setEditingColumnIndex] = useState<number | null>(null);
   const [editColumnData, setEditColumnData] = useState({ label: '', type: '' });
+
+  const formatDate = (dateStr: any) => {
+    if (!dateStr) return "-";
+    try {
+      const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
+      if (!isValid(date)) return dateStr;
+      return format(date, "dd-MMM-yyyy");
+    } catch (e) {
+      return dateStr;
+    }
+  };
 
   const fetchColumns = () => {
     fetch(`/api/columns/${stage}`, {
@@ -837,18 +849,20 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
                   {customers.map((customer, index) => {
                 let noColorClass = "text-gray-500";
                 if (customer.create_date) {
-                  const createDate = new Date(customer.create_date);
-                  const today = new Date();
-                  const diffTime = today.getTime() - createDate.getTime();
-                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                  
-                  if (diffDays <= 7) {
-                    noColorClass = "bg-green-100 text-green-800 font-bold";
-                  } else if (diffDays <= 30) {
-                    noColorClass = "bg-yellow-100 text-yellow-800 font-bold";
-                  } else {
-                    noColorClass = "bg-red-100 text-red-800 font-bold";
-                  }
+                  try {
+                    const createDate = typeof customer.create_date === 'string' ? parseISO(customer.create_date) : new Date(customer.create_date);
+                    if (isValid(createDate)) {
+                      const diffDays = differenceInDays(new Date(), createDate);
+                      
+                      if (diffDays <= 7) {
+                        noColorClass = "bg-green-100 text-green-800 font-bold";
+                      } else if (diffDays <= 30) {
+                        noColorClass = "bg-yellow-100 text-yellow-800 font-bold";
+                      } else {
+                        noColorClass = "bg-red-100 text-red-800 font-bold";
+                      }
+                    }
+                  } catch (e) {}
                 }
 
                 return (
@@ -891,7 +905,7 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
                                   {customer.status}
                                 </span>
                               ) : (
-                                customer[col.key]
+                                col.type === 'date' ? formatDate(customer[col.key]) : customer[col.key]
                               )
                             ) : (
                               col.type === 'select' ? (
@@ -966,7 +980,7 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
                                 {customer.status}
                               </span>
                             ) : (
-                              customer[col.key]
+                              col.type === 'date' ? formatDate(customer[col.key]) : customer[col.key]
                             )}
                           </td>
                         );
@@ -1290,7 +1304,7 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
                               {viewingCustomer.status}
                             </span>
                           ) : (
-                            viewingCustomer[col.key] || <span className="text-gray-400 italic font-normal">-</span>
+                            col.type === 'date' ? formatDate(viewingCustomer[col.key]) : (viewingCustomer[col.key] || <span className="text-gray-400 italic font-normal">-</span>)
                           )}
                         </div>
                       )}

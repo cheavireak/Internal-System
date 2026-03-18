@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileSpreadsheet, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as xlsx from 'xlsx';
+import { format, parseISO, isValid } from "date-fns";
 
 interface Customer {
   id: number;
@@ -30,6 +31,16 @@ export default function Reports() {
   const [newTask, setNewTask] = useState({ task_assign: '', time: '', result: '' });
   const [page, setPage] = useState(1);
   const itemsPerPage = 50;
+
+  const formatDate = (dateStr: any) => {
+    if (!dateStr) return "-";
+    try {
+      const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
+      return isValid(date) ? format(date, "dd-MMM-yyyy") : String(dateStr);
+    } catch (e) {
+      return String(dateStr);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -156,7 +167,7 @@ export default function Reports() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {customers.slice((page - 1) * itemsPerPage, page * itemsPerPage).map(c => (
                 <tr key={c.id}>
-                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{c.create_date}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{formatDate(c.create_date)}</td>
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{c.customer_name}</td>
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{c.type}</td>
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{c.content}</td>

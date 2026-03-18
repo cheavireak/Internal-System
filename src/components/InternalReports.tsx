@@ -3,6 +3,7 @@ import { Plus, Download, Search, Trash2, Edit2, ChevronLeft, ChevronRight, Refre
 import { useNavigate } from "react-router-dom";
 import * as xlsx from "xlsx";
 import { useToast } from "../contexts/ToastContext";
+import { format, parseISO, isValid } from "date-fns";
 
 export default function InternalReports() {
   const navigate = useNavigate();
@@ -14,6 +15,16 @@ export default function InternalReports() {
   const [months, setMonths] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const { showToast } = useToast();
+
+  const formatDate = (dateStr: any) => {
+    if (!dateStr) return "-";
+    try {
+      const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
+      return isValid(date) ? format(date, "dd-MMM-yyyy") : String(dateStr);
+    } catch (e) {
+      return String(dateStr);
+    }
+  };
 
   const [importFile, setImportFile] = useState<File | null>(null);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
@@ -514,7 +525,7 @@ export default function InternalReports() {
                 <>
                   {records.map(r => (
                     <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{r.date}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{formatDate(r.date)}</td>
                       <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 min-w-[250px] max-w-xs whitespace-normal break-words">{r.action_tasks}</td>
                       <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 min-w-[250px] max-w-xs whitespace-normal break-words">{r.result}</td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-right">

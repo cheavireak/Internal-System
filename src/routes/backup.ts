@@ -175,6 +175,40 @@ router.post("/restore", authenticate, requireAdmin, async (req: any, res) => {
       await execAsync(pgRestoreCmd);
     }
     console.log("DEBUG: Database restored.");
+
+    // Reset sequences for all tables to prevent duplicate key errors
+    try {
+      const tablesToReset = await dbModule.pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+      `);
+
+      for (const row of tablesToReset.rows) {
+        const tableName = row.table_name;
+        // Check if table has a serial/identity column
+        const serialColumn = await dbModule.pool.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = $1 AND column_default LIKE 'nextval%'
+        `, [tableName]);
+
+        if (serialColumn.rows.length > 0) {
+          const columnName = serialColumn.rows[0].column_name;
+          console.log(`DEBUG: Resetting sequence for ${tableName}.${columnName}...`);
+          try {
+            await dbModule.pool.query(`
+              SELECT setval(pg_get_serial_sequence($1, $2), COALESCE(MAX(${columnName}), 1)) 
+              FROM ${tableName}
+            `, [tableName, columnName]);
+          } catch (seqErr: any) {
+            console.warn(`DEBUG: Could not reset sequence for ${tableName}:`, seqErr.message);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error("DEBUG: Error during sequence reset:", err.message);
+    }
     
     // Check if data exists
     const count = await dbModule.db.prepare("SELECT COUNT(*) as count FROM customers").get() as any;
