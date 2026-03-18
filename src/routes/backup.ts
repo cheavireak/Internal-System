@@ -78,6 +78,79 @@ router.post("/create", authenticate, requireAdmin, async (req: any, res) => {
   }
 });
 
+// Reset sequences for all tables to prevent duplicate key errors
+async function resetSequences() {
+  console.log("DEBUG: Starting sequence reset for all tables...");
+  try {
+    const tablesToReset = await dbModule.pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+    `);
+
+    for (const row of tablesToReset.rows) {
+      const tableName = row.table_name;
+      
+      // Find columns that are likely primary keys or have sequences
+      // We check for SERIAL, IDENTITY, or columns with nextval in default
+      const serialColumns = await dbModule.pool.query(`
+        SELECT column_name, column_default
+        FROM information_schema.columns 
+        WHERE table_name = $1 
+        AND (
+          column_default LIKE 'nextval%' 
+          OR is_identity = 'YES'
+          OR (column_name = 'id' AND data_type LIKE '%int%')
+        )
+      `, [tableName]);
+
+      for (const col of serialColumns.rows) {
+        const columnName = col.column_name;
+        console.log(`DEBUG: Attempting to reset sequence for ${tableName}.${columnName}...`);
+        
+        try {
+          // Try to get the sequence name
+          const seqRes = await dbModule.pool.query(`
+            SELECT pg_get_serial_sequence($1, $2) as seq_name
+          `, [tableName, columnName]);
+          
+          let seqName = seqRes.rows[0]?.seq_name;
+          
+          if (!seqName) {
+            // Fallback: common naming convention if pg_get_serial_sequence fails
+            seqName = `${tableName}_${columnName}_seq`;
+            console.log(`DEBUG: pg_get_serial_sequence failed, trying fallback name: ${seqName}`);
+          }
+
+          // Check if sequence exists before trying to set it
+          const seqExists = await dbModule.pool.query(`
+            SELECT EXISTS (
+              SELECT 1 FROM pg_class c 
+              JOIN pg_namespace n ON n.oid = c.relnamespace 
+              WHERE c.relkind = 'S' AND c.relname = $1
+            ) as exists
+          `, [seqName.includes('.') ? seqName.split('.')[1] : seqName]);
+
+          if (seqExists.rows[0].exists) {
+            await dbModule.pool.query(`
+              SELECT setval($1, COALESCE((SELECT MAX(${columnName}) FROM ${tableName}), 1))
+            `, [seqName]);
+            console.log(`DEBUG: Successfully reset sequence ${seqName}`);
+          } else {
+            console.warn(`DEBUG: Sequence ${seqName} does not exist. Skipping.`);
+          }
+        } catch (seqErr: any) {
+          console.warn(`DEBUG: Could not reset sequence for ${tableName}.${columnName}:`, seqErr.message);
+        }
+      }
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.error("DEBUG: Error during sequence reset:", err.message);
+    throw err;
+  }
+}
+
 // Restore from a backup
 router.post("/restore", authenticate, requireAdmin, async (req: any, res) => {
   const { filename } = req.body;
@@ -177,38 +250,7 @@ router.post("/restore", authenticate, requireAdmin, async (req: any, res) => {
     console.log("DEBUG: Database restored.");
 
     // Reset sequences for all tables to prevent duplicate key errors
-    try {
-      const tablesToReset = await dbModule.pool.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-      `);
-
-      for (const row of tablesToReset.rows) {
-        const tableName = row.table_name;
-        // Check if table has a serial/identity column
-        const serialColumn = await dbModule.pool.query(`
-          SELECT column_name 
-          FROM information_schema.columns 
-          WHERE table_name = $1 AND column_default LIKE 'nextval%'
-        `, [tableName]);
-
-        if (serialColumn.rows.length > 0) {
-          const columnName = serialColumn.rows[0].column_name;
-          console.log(`DEBUG: Resetting sequence for ${tableName}.${columnName}...`);
-          try {
-            await dbModule.pool.query(`
-              SELECT setval(pg_get_serial_sequence($1, $2), COALESCE(MAX(${columnName}), 1)) 
-              FROM ${tableName}
-            `, [tableName, columnName]);
-          } catch (seqErr: any) {
-            console.warn(`DEBUG: Could not reset sequence for ${tableName}:`, seqErr.message);
-          }
-        }
-      }
-    } catch (err: any) {
-      console.error("DEBUG: Error during sequence reset:", err.message);
-    }
+    await resetSequences();
     
     // Check if data exists
     const count = await dbModule.db.prepare("SELECT COUNT(*) as count FROM customers").get() as any;
@@ -243,6 +285,17 @@ router.post("/restore", authenticate, requireAdmin, async (req: any, res) => {
     
     logAction('restore', 'backup', null, `Restored database from: ${filename}`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true, message: "Database restored successfully." });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual sequence reset endpoint
+router.post("/fix-sequences", authenticate, requireAdmin, async (req: any, res) => {
+  try {
+    await resetSequences();
+    logAction('fix_sequences', 'system', null, `Manually reset database sequences`, req.user.id, req.user.name, getClientIp(req));
+    res.json({ success: true, message: "Database sequences reset successfully." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

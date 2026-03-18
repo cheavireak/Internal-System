@@ -38,6 +38,7 @@ export default function Settings({ currentUser, refreshHiddenMenus, hiddenMenus 
   const [confirmAction, setConfirmAction] = useState<{ type: 'restore' | 'delete', filename: string } | null>(null);
   const [isBackupsVisible, setIsBackupsVisible] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
+  const [fixingSequences, setFixingSequences] = useState(false);
   const [selectedBackupFile, setSelectedBackupFile] = useState<string>('');
   const { showToast } = useToast();
 
@@ -202,6 +203,29 @@ export default function Settings({ currentUser, refreshHiddenMenus, hiddenMenus 
     event.target.value = '';
   };
 
+  const handleFixSequences = async () => {
+    setFixingSequences(true);
+    try {
+      const response = await fetch("/api/backup/fix-sequences", {
+        method: "POST",
+        headers: { 
+          Authorization: `Bearer ${localStorage.getItem("token")}` 
+        }
+      });
+      
+      if (response.ok) {
+        showToast("Database sequences reset successfully. You can now add new records.", "success");
+      } else {
+        const data = await response.json();
+        showToast(data.error || "Failed to reset sequences", "error");
+      }
+    } catch (e) {
+      showToast("Failed to reset sequences", "error");
+    } finally {
+      setFixingSequences(false);
+    }
+  };
+
   const handleSaveIpWhitelist = async () => {
     try {
       setLoading(true);
@@ -346,6 +370,17 @@ export default function Settings({ currentUser, refreshHiddenMenus, hiddenMenus 
                   Upload Backup
                   <input type="file" accept=".sql,.sqlite,.db" className="hidden" onChange={handleUploadBackup} />
                 </label>
+              )}
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={handleFixSequences}
+                  disabled={fixingSequences}
+                  className="px-4 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg text-sm font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-2"
+                  title="Fix primary key sequence issues after import"
+                >
+                  <RefreshCw className={`w-4 h-4 ${fixingSequences ? 'animate-spin' : ''}`} />
+                  {fixingSequences ? 'Fixing...' : 'Fix Sequences'}
+                </button>
               )}
               {currentUser?.role === 'admin' && (
                 <button
