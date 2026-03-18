@@ -6,14 +6,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionString: process.env.DATABASE_URL || 'postgres://your_username:your_password@localhost:5432/internal-system',
 });
-
-console.log("DEBUG: DATABASE_URL is set:", !!process.env.DATABASE_URL);
-if (!process.env.DATABASE_URL) {
-  console.error("DEBUG: DATABASE_URL is NOT set!");
-}
 
 // Helper to convert SQLite ? to Postgres $1, $2
 function convertSql(sql: string) {
