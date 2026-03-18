@@ -25,7 +25,8 @@ const storage = multer.diskStorage({
     cb(null, BACKUP_DIR);
   },
   filename: (req, file, cb) => {
-    cb(null, `uploaded_backup_${Date.now()}.sql`);
+    const ext = path.extname(file.originalname);
+    cb(null, `uploaded_backup_${Date.now()}${ext || '.sql'}`);
   }
 });
 const upload = multer({ storage });
@@ -62,11 +63,11 @@ router.post("/create", authenticate, requireAdmin, async (req: any, res) => {
       filename = `backup_${timestamp}.sql`;
     }
 
+    // Use pg_dump for PostgreSQL
+    const databaseUrl = process.env.DATABASE_URL || 'postgres://your_username:your_password@localhost:5432/internal-system';
     const backupPath = path.join(BACKUP_DIR, filename);
     
-    // Use pg_dump for PostgreSQL
-    const { user, host, database, password, port } = dbModule.pool.options;
-    const pgDumpCmd = `PGPASSWORD="${password}" pg_dump -U ${user} -h ${host} -p ${port} -d ${database} -F c -f "${backupPath}"`;
+    const pgDumpCmd = `pg_dump -d "${databaseUrl}" -F c -f "${backupPath}"`;
     await execAsync(pgDumpCmd);
     
     const actionMsg = providedFilename ? `Overwrote backup: ${filename}` : `Created backup: ${filename}`;
@@ -97,10 +98,42 @@ router.post("/restore", authenticate, requireAdmin, async (req: any, res) => {
     const currentUser = await dbModule.db.prepare("SELECT * FROM users WHERE email = ?").get((req as any).user.email) as any;
     console.log("DEBUG: Current user before restore:", currentUser ? currentUser.email : "null");
     
-    // Use pg_restore for PostgreSQL
-    const { user, host, database, password, port } = dbModule.pool.options;
-    const pgRestoreCmd = `PGPASSWORD="${password}" pg_restore -U ${user} -h ${host} -p ${port} -d ${database} -1 -c "${backupPath}"`;
-    await execAsync(pgRestoreCmd);
+    // RESTORE LOGIC
+    if (filename.endsWith('.sqlite') || filename.endsWith('.db')) {
+      console.log("DEBUG: Restoring from SQLite...");
+      const Database = (await import('better-sqlite3')).default;
+      const sqliteDb = new Database(backupPath);
+      
+      const tables = sqliteDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as any[];
+      
+      for (const table of tables) {
+        const tableName = table.name;
+        if (tableName === 'sqlite_sequence') continue;
+        
+        console.log(`DEBUG: Migrating table ${tableName}...`);
+        const rows = sqliteDb.prepare(`SELECT * FROM ${tableName}`).all() as any[];
+        
+        if (rows.length === 0) continue;
+        
+        // Clear existing data in Postgres
+        await dbModule.pool.query(`TRUNCATE TABLE ${tableName} RESTART IDENTITY CASCADE`);
+        
+        const columns = Object.keys(rows[0]);
+        const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
+        const insertSql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`;
+        
+        for (const row of rows) {
+          const values = columns.map(col => row[col]);
+          await dbModule.pool.query(insertSql, values);
+        }
+      }
+      sqliteDb.close();
+    } else {
+      // Use pg_restore for PostgreSQL
+      const databaseUrl = process.env.DATABASE_URL || 'postgres://your_username:your_password@localhost:5432/internal-system';
+      const pgRestoreCmd = `pg_restore -d "${databaseUrl}" -1 -c "${backupPath}"`;
+      await execAsync(pgRestoreCmd);
+    }
     console.log("DEBUG: Database restored.");
     
     // Check if data exists
