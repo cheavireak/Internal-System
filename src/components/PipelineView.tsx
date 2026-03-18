@@ -81,6 +81,22 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
   const formatDate = (dateStr: any) => {
     if (!dateStr) return "-";
     try {
+      // Handle dd-MMM-yyyy format (e.g., 18-Mar-2026)
+      if (typeof dateStr === 'string' && dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+          const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+          const monthIdx = months.indexOf(parts[1].toLowerCase());
+          if (monthIdx !== -1) {
+            const day = parts[0].padStart(2, '0');
+            const year = parts[2];
+            const month = (monthIdx + 1).toString().padStart(2, '0');
+            const date = new Date(`${year}-${month}-${day}`);
+            if (isValid(date)) return format(date, "dd-MMM-yyyy");
+          }
+        }
+      }
+
       const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
       if (!isValid(date)) return dateStr;
       return format(date, "dd-MMM-yyyy");
@@ -92,17 +108,26 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
   const formatForInput = (dateStr: any) => {
     if (!dateStr) return "";
     try {
-      // Handle dd-MMM-yyyy format if it comes from the UI/state
-      if (typeof dateStr === 'string' && dateStr.includes('-') && isNaN(Number(dateStr.split('-')[0]))) {
+      // If it's already YYYY-MM-DD, return it
+      if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return dateStr;
+      }
+
+      // Handle dd-MMM-yyyy format (e.g., 18-Mar-2026)
+      if (typeof dateStr === 'string' && dateStr.includes('-')) {
         const parts = dateStr.split('-');
         if (parts.length === 3) {
-          const day = parts[0];
-          const month = parts[1];
-          const year = parts[2];
-          const date = new Date(`${month} ${day}, ${year}`);
-          if (isValid(date)) return format(date, "yyyy-MM-dd");
+          const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+          const monthIdx = months.indexOf(parts[1].toLowerCase());
+          if (monthIdx !== -1) {
+            const day = parts[0].padStart(2, '0');
+            const year = parts[2];
+            const month = (monthIdx + 1).toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+          }
         }
       }
+
       const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
       if (!isValid(date)) return "";
       return format(date, "yyyy-MM-dd");

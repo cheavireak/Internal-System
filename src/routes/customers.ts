@@ -156,84 +156,92 @@ router.post("/", authenticate, async (req: any, res) => {
 });
 
 router.put("/:id", authenticate, async (req: any, res) => {
-  const data = req.body;
-  
-  // Extract custom data
-  const standardKeys = ['create_date', 'customer_name', 'type', 'content', 'feedback_from_customer', 'last_update', 'status', 'completed_date', 'pro_account', 'sale_owner', 'sale_updated', 'other', 'pipeline_stage', 'priority', 'next_follow_up_date', 'tags', 'status_in_production', 'date_to_production', 'date_have_traffic'];
-  const customData: any = {};
-  Object.keys(data).forEach(key => {
-    if (!standardKeys.includes(key) && key !== 'id') {
-      customData[key] = data[key];
-    }
-  });
-
-  // Check if pipeline_stage changed or if stage_updated_at was explicitly changed
-  const currentCustomer = await db.prepare("SELECT * FROM customers WHERE id = ?").get(req.params.id) as any;
-  
-  // Calculate changed fields
-  const changedFields = [];
-  for (const key in data) {
-    if (key !== 'id' && data[key] !== currentCustomer[key]) {
-      changedFields.push(`${key}: ${currentCustomer[key]} -> ${data[key]}`);
-    }
-  }
-  
-  const isMove = currentCustomer.pipeline_stage !== data.pipeline_stage || (data.stage_updated_at && data.stage_updated_at !== currentCustomer.stage_updated_at);
-
-  let stmt;
-  if (isMove) {
-    stmt = db.prepare(`
-      UPDATE customers SET
-        customer_name = ?, type = ?, content = ?, feedback_from_customer = ?,
-        last_update = ?, status = ?, completed_date = ?, pro_account = ?,
-        sale_owner = ?, sale_updated = ?, other = ?, pipeline_stage = ?,
-        priority = ?, next_follow_up_date = ?, tags = ?,
-        status_in_production = ?, date_to_production = ?, date_have_traffic = ?,
-        stage_updated_at = ?, custom_data = ?
-      WHERE id = ?
-    `);
-    await stmt.run(
-      data.customer_name, data.type, data.content, data.feedback_from_customer,
-      data.last_update, data.status, data.completed_date, data.pro_account,
-      data.sale_owner, data.sale_updated, data.other, data.pipeline_stage,
-      data.priority, data.next_follow_up_date, data.tags,
-      data.status_in_production, data.date_to_production, data.date_have_traffic,
-      data.stage_updated_at || new Date().toISOString(),
-      JSON.stringify(customData),
-      req.params.id
-    );
+  try {
+    const data = req.body;
     
-    if (currentCustomer.pipeline_stage !== data.pipeline_stage) {
-      const action = ['Delay', 'Lost', 'Production'].includes(data.pipeline_stage) ? 'integration' : 'move';
-      logAction(action, 'customer', req.params.id, `Moved customer: ${data.customer_name} from ${currentCustomer.pipeline_stage} to ${data.pipeline_stage}.`, req.user.id, req.user.name, getClientIp(req));
+    // Extract custom data
+    const standardKeys = ['create_date', 'customer_name', 'type', 'content', 'feedback_from_customer', 'last_update', 'status', 'completed_date', 'pro_account', 'sale_owner', 'sale_updated', 'other', 'pipeline_stage', 'priority', 'next_follow_up_date', 'tags', 'status_in_production', 'date_to_production', 'date_have_traffic'];
+    const customData: any = {};
+    Object.keys(data).forEach(key => {
+      if (!standardKeys.includes(key) && key !== 'id') {
+        customData[key] = data[key];
+      }
+    });
+
+    // Check if pipeline_stage changed or if stage_updated_at was explicitly changed
+    const currentCustomer = await db.prepare("SELECT * FROM customers WHERE id = ?").get(req.params.id) as any;
+    if (!currentCustomer) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+    
+    // Calculate changed fields
+    const changedFields = [];
+    for (const key in data) {
+      if (key !== 'id' && data[key] !== currentCustomer[key]) {
+        changedFields.push(`${key}: ${currentCustomer[key]} -> ${data[key]}`);
+      }
+    }
+    
+    const isMove = currentCustomer.pipeline_stage !== data.pipeline_stage || (data.stage_updated_at && data.stage_updated_at !== currentCustomer.stage_updated_at);
+
+    let stmt;
+    if (isMove) {
+      stmt = db.prepare(`
+        UPDATE customers SET
+          create_date = ?, customer_name = ?, type = ?, content = ?, feedback_from_customer = ?,
+          last_update = ?, status = ?, completed_date = ?, pro_account = ?,
+          sale_owner = ?, sale_updated = ?, other = ?, pipeline_stage = ?,
+          priority = ?, next_follow_up_date = ?, tags = ?,
+          status_in_production = ?, date_to_production = ?, date_have_traffic = ?,
+          stage_updated_at = ?, custom_data = ?
+        WHERE id = ?
+      `);
+      await stmt.run(
+        data.create_date, data.customer_name, data.type, data.content, data.feedback_from_customer,
+        data.last_update, data.status, data.completed_date, data.pro_account,
+        data.sale_owner, data.sale_updated, data.other, data.pipeline_stage,
+        data.priority, data.next_follow_up_date, data.tags,
+        data.status_in_production, data.date_to_production, data.date_have_traffic,
+        data.stage_updated_at || new Date().toISOString(),
+        JSON.stringify(customData),
+        req.params.id
+      );
+      
+      if (currentCustomer.pipeline_stage !== data.pipeline_stage) {
+        const action = ['Delay', 'Lost', 'Production'].includes(data.pipeline_stage) ? 'integration' : 'move';
+        logAction(action, 'customer', req.params.id, `Moved customer: ${data.customer_name} from ${currentCustomer.pipeline_stage} to ${data.pipeline_stage}.`, req.user.id, req.user.name, getClientIp(req));
+      } else {
+        logAction('update', 'customer', req.params.id, `Updated move date for customer: ${data.customer_name} in ${data.pipeline_stage}.`, req.user.id, req.user.name, getClientIp(req));
+      }
     } else {
-      logAction('update', 'customer', req.params.id, `Updated move date for customer: ${data.customer_name} in ${data.pipeline_stage}.`, req.user.id, req.user.name, getClientIp(req));
+      stmt = db.prepare(`
+        UPDATE customers SET
+          create_date = ?, customer_name = ?, type = ?, content = ?, feedback_from_customer = ?,
+          last_update = ?, status = ?, completed_date = ?, pro_account = ?,
+          sale_owner = ?, sale_updated = ?, other = ?, pipeline_stage = ?,
+          priority = ?, next_follow_up_date = ?, tags = ?,
+          status_in_production = ?, date_to_production = ?, date_have_traffic = ?,
+          custom_data = ?
+        WHERE id = ?
+      `);
+      await stmt.run(
+        data.create_date, data.customer_name, data.type, data.content, data.feedback_from_customer,
+        data.last_update, data.status, data.completed_date, data.pro_account,
+        data.sale_owner, data.sale_updated, data.other, data.pipeline_stage,
+        data.priority, data.next_follow_up_date, data.tags,
+        data.status_in_production, data.date_to_production, data.date_have_traffic,
+        JSON.stringify(customData),
+        req.params.id
+      );
+      
+      logAction('update', 'customer', req.params.id, `Updated customer: ${data.customer_name}. Changed fields: ${changedFields.join(', ')}`, req.user.id, req.user.name, getClientIp(req));
     }
-  } else {
-    stmt = db.prepare(`
-      UPDATE customers SET
-        customer_name = ?, type = ?, content = ?, feedback_from_customer = ?,
-        last_update = ?, status = ?, completed_date = ?, pro_account = ?,
-        sale_owner = ?, sale_updated = ?, other = ?, pipeline_stage = ?,
-        priority = ?, next_follow_up_date = ?, tags = ?,
-        status_in_production = ?, date_to_production = ?, date_have_traffic = ?,
-        custom_data = ?
-      WHERE id = ?
-    `);
-    await stmt.run(
-      data.customer_name, data.type, data.content, data.feedback_from_customer,
-      data.last_update, data.status, data.completed_date, data.pro_account,
-      data.sale_owner, data.sale_updated, data.other, data.pipeline_stage,
-      data.priority, data.next_follow_up_date, data.tags,
-      data.status_in_production, data.date_to_production, data.date_have_traffic,
-      JSON.stringify(customData),
-      req.params.id
-    );
     
-    logAction('update', 'customer', req.params.id, `Updated customer: ${data.customer_name}. Changed fields: ${changedFields.join(', ')}`, req.user.id, req.user.name, getClientIp(req));
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("Error updating customer:", e);
+    res.status(500).json({ error: e.message });
   }
-  
-  res.json({ success: true });
 });
 
 router.delete("/:id", authenticate, async (req: any, res) => {
