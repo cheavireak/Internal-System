@@ -8,8 +8,8 @@ import { getClientIp } from "../utils/ip.js";
 const router = express.Router();
 
 // Get all active users
-router.get("/", authenticate, (req: any, res) => {
-  const users = db.prepare("SELECT id, email, role, name, permissions, is_disabled, is_superadmin, ip_whitelist FROM users WHERE deleted_at IS NULL").all() as any[];
+router.get("/", authenticate, async (req: any, res) => {
+  const users = await db.prepare("SELECT id, email, role, name, permissions, is_disabled, is_superadmin, ip_whitelist FROM users WHERE deleted_at IS NULL").all() as any[];
   const parsedUsers = users.map(u => ({
     ...u,
     permissions: u.permissions ? JSON.parse(u.permissions) : null,
@@ -21,8 +21,8 @@ router.get("/", authenticate, (req: any, res) => {
 });
 
 // Get deleted users (Trash)
-router.get("/trash", authenticate, requireAdmin, (req: any, res) => {
-  const users = db.prepare("SELECT id, email, role, name, permissions, is_disabled, is_superadmin, deleted_at FROM users WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC").all() as any[];
+router.get("/trash", authenticate, requireAdmin, async (req: any, res) => {
+  const users = await db.prepare("SELECT id, email, role, name, permissions, is_disabled, is_superadmin, deleted_at FROM users WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC").all() as any[];
   const parsedUsers = users.map(u => ({
     ...u,
     permissions: u.permissions ? JSON.parse(u.permissions) : null,
@@ -33,12 +33,12 @@ router.get("/trash", authenticate, requireAdmin, (req: any, res) => {
 });
 
 // Restore deleted user
-router.post("/:id/restore", authenticate, requireAdmin, (req: any, res) => {
+router.post("/:id/restore", authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const targetUser = db.prepare("SELECT email, name FROM users WHERE id = ?").get(req.params.id) as any;
+    const targetUser = await db.prepare("SELECT email, name FROM users WHERE id = ?").get(req.params.id) as any;
     if (!targetUser) return res.status(404).json({ error: "User not found" });
 
-    db.prepare("UPDATE users SET deleted_at = NULL WHERE id = ?").run(req.params.id);
+    await db.prepare("UPDATE users SET deleted_at = NULL WHERE id = ?").run(req.params.id);
     logAction('restore', 'user', req.params.id, `Restored user: ${targetUser.name}`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
   } catch (e: any) {
@@ -46,7 +46,7 @@ router.post("/:id/restore", authenticate, requireAdmin, (req: any, res) => {
   }
 });
 
-router.post("/", authenticate, requireAdmin, (req: any, res) => {
+router.post("/", authenticate, requireAdmin, async (req: any, res) => {
   const { email, password, role, name, permissions } = req.body;
   try {
     if (req.user.role === 'manager' && role === 'admin') {
@@ -79,7 +79,7 @@ router.post("/", authenticate, requireAdmin, (req: any, res) => {
       };
     }
     const permsString = permissions ? JSON.stringify(permissions) : JSON.stringify(defaultPerms);
-    const result = db.prepare("INSERT INTO users (email, password_hash, role, name, permissions, ip_whitelist) VALUES (?, ?, ?, ?, ?, ?)").run(email, hash, role, name, permsString, req.body.ip_whitelist || "");
+    const result = await db.prepare("INSERT INTO users (email, password_hash, role, name, permissions, ip_whitelist) VALUES (?, ?, ?, ?, ?, ?)").run(email, hash, role, name, permsString, req.body.ip_whitelist || "");
     
     logAction('create', 'user', String(result.lastInsertRowid), `Created user: ${name} (${role})`, req.user.id, req.user.name, getClientIp(req));
     res.json({ id: result.lastInsertRowid });
@@ -88,10 +88,10 @@ router.post("/", authenticate, requireAdmin, (req: any, res) => {
   }
 });
 
-router.put("/:id", authenticate, requireAdmin, (req: any, res) => {
+router.put("/:id", authenticate, requireAdmin, async (req: any, res) => {
   const { email, role, name, permissions, is_disabled } = req.body;
   try {
-    const targetUser = db.prepare("SELECT role, is_superadmin, name FROM users WHERE id = ?").get(req.params.id) as any;
+    const targetUser = await db.prepare("SELECT role, is_superadmin, name FROM users WHERE id = ?").get(req.params.id) as any;
     if (!targetUser) return res.status(404).json({ error: "User not found" });
 
     if (req.user.role === 'manager') {
@@ -123,7 +123,7 @@ router.put("/:id", authenticate, requireAdmin, (req: any, res) => {
         can_manage_columns: true,
         can_delete_audit_logs: true
       });
-      db.prepare("UPDATE users SET email = ?, name = ?, permissions = ?, is_disabled = 0, ip_whitelist = ? WHERE id = ?").run(email, name, defaultPermissions, req.body.ip_whitelist || "", req.params.id);
+      await db.prepare("UPDATE users SET email = ?, name = ?, permissions = ?, is_disabled = 0, ip_whitelist = ? WHERE id = ?").run(email, name, defaultPermissions, req.body.ip_whitelist || "", req.params.id);
       logAction('update', 'user', req.params.id, `Updated superadmin user: ${name}`, req.user.id, req.user.name, getClientIp(req));
       return res.json({ success: true });
     }
@@ -132,9 +132,9 @@ router.put("/:id", authenticate, requireAdmin, (req: any, res) => {
     const disabledVal = is_disabled ? 1 : 0;
     const ipWhitelistVal = req.body.ip_whitelist || "";
     if (permsString) {
-      db.prepare("UPDATE users SET email = ?, role = ?, name = ?, permissions = ?, is_disabled = ?, ip_whitelist = ? WHERE id = ?").run(email, role, name, permsString, disabledVal, ipWhitelistVal, req.params.id);
+      await db.prepare("UPDATE users SET email = ?, role = ?, name = ?, permissions = ?, is_disabled = ?, ip_whitelist = ? WHERE id = ?").run(email, role, name, permsString, disabledVal, ipWhitelistVal, req.params.id);
     } else {
-      db.prepare("UPDATE users SET email = ?, role = ?, name = ?, is_disabled = ?, ip_whitelist = ? WHERE id = ?").run(email, role, name, disabledVal, ipWhitelistVal, req.params.id);
+      await db.prepare("UPDATE users SET email = ?, role = ?, name = ?, is_disabled = ?, ip_whitelist = ? WHERE id = ?").run(email, role, name, disabledVal, ipWhitelistVal, req.params.id);
     }
     
     let details = `Updated user: ${name}`;
@@ -151,19 +151,19 @@ router.put("/:id", authenticate, requireAdmin, (req: any, res) => {
   }
 });
 
-router.put("/:id/password", authenticate, requireAdmin, (req: any, res) => {
+router.put("/:id/password", authenticate, requireAdmin, async (req: any, res) => {
   const { password } = req.body;
   if (!password) {
     return res.status(400).json({ error: "Password is required" });
   }
   try {
-    const targetUser = db.prepare("SELECT role, name FROM users WHERE id = ?").get(req.params.id) as any;
+    const targetUser = await db.prepare("SELECT role, name FROM users WHERE id = ?").get(req.params.id) as any;
     if (req.user.role === 'manager' && targetUser?.role === 'admin') {
       return res.status(401).json({ error: "Managers cannot reset password of admin users" });
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hash, req.params.id);
+    await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hash, req.params.id);
     
     logAction('update', 'user', req.params.id, `Reset password for user: ${targetUser?.name || 'Unknown'}`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
@@ -172,9 +172,9 @@ router.put("/:id/password", authenticate, requireAdmin, (req: any, res) => {
   }
 });
 
-router.put("/:id/toggle-status", authenticate, requireAdmin, (req: any, res) => {
+router.put("/:id/toggle-status", authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const targetUser = db.prepare("SELECT email, is_disabled, name FROM users WHERE id = ?").get(req.params.id) as any;
+    const targetUser = await db.prepare("SELECT email, is_disabled, name FROM users WHERE id = ?").get(req.params.id) as any;
     if (!targetUser) return res.status(404).json({ error: "User not found" });
     
     if (targetUser.email === 'admin@admin.com') {
@@ -182,7 +182,7 @@ router.put("/:id/toggle-status", authenticate, requireAdmin, (req: any, res) => 
     }
 
     const newStatus = targetUser.is_disabled ? 0 : 1;
-    db.prepare("UPDATE users SET is_disabled = ? WHERE id = ?").run(newStatus, req.params.id);
+    await db.prepare("UPDATE users SET is_disabled = ? WHERE id = ?").run(newStatus, req.params.id);
     
     logAction('update', 'user', req.params.id, `Toggled user status: ${targetUser.name} (Disabled: ${newStatus})`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true, is_disabled: !!newStatus });
@@ -191,9 +191,9 @@ router.put("/:id/toggle-status", authenticate, requireAdmin, (req: any, res) => 
   }
 });
 
-router.delete("/:id", authenticate, requireAdmin, (req: any, res) => {
+router.delete("/:id", authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const targetUser = db.prepare("SELECT role, is_superadmin, name FROM users WHERE id = ?").get(req.params.id) as any;
+    const targetUser = await db.prepare("SELECT role, is_superadmin, name FROM users WHERE id = ?").get(req.params.id) as any;
     if (!targetUser) return res.status(404).json({ error: "User not found" });
     
     if (req.user.role === 'manager' && targetUser.role === 'admin') {
@@ -204,7 +204,7 @@ router.delete("/:id", authenticate, requireAdmin, (req: any, res) => {
       return res.status(400).json({ error: "Cannot delete the superadmin user" });
     }
 
-    db.prepare("UPDATE users SET deleted_at = ? WHERE id = ?").run(new Date().toISOString(), req.params.id);
+    await db.prepare("UPDATE users SET deleted_at = ? WHERE id = ?").run(new Date().toISOString(), req.params.id);
     
     logAction('delete', 'user', req.params.id, `Soft deleted user: ${targetUser.name}`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
@@ -213,12 +213,12 @@ router.delete("/:id", authenticate, requireAdmin, (req: any, res) => {
   }
 });
 
-router.delete("/:id/permanent", authenticate, requireAdmin, (req: any, res) => {
+router.delete("/:id/permanent", authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const targetUser = db.prepare("SELECT name FROM users WHERE id = ?").get(req.params.id) as any;
+    const targetUser = await db.prepare("SELECT name FROM users WHERE id = ?").get(req.params.id) as any;
     if (!targetUser) return res.status(404).json({ error: "User not found" });
 
-    db.prepare("DELETE FROM users WHERE id = ?").run(req.params.id);
+    await db.prepare("DELETE FROM users WHERE id = ?").run(req.params.id);
     
     logAction('delete_permanent', 'user', req.params.id, `Permanently deleted user: ${targetUser.name}`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
@@ -227,9 +227,9 @@ router.delete("/:id/permanent", authenticate, requireAdmin, (req: any, res) => {
   }
 });
 
-router.delete("/trash/clear", authenticate, requireAdmin, (req: any, res) => {
+router.delete("/trash/clear", authenticate, requireAdmin, async (req: any, res) => {
   try {
-    db.prepare("DELETE FROM users WHERE deleted_at IS NOT NULL").run();
+    await db.prepare("DELETE FROM users WHERE deleted_at IS NOT NULL").run();
     logAction('clear_trash', 'user', null, `Cleared user trash`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
   } catch (e: any) {

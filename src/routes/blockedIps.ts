@@ -6,21 +6,21 @@ import { getClientIp } from "../utils/ip.js";
 
 const router = express.Router();
 
-router.get("/", authenticate, requireAdmin, (req: any, res) => {
+router.get("/", authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const blocked = db.prepare("SELECT * FROM blocked_ips ORDER BY blocked_at DESC").all();
+    const blocked = await db.prepare("SELECT * FROM blocked_ips ORDER BY blocked_at DESC").all();
     res.json(blocked);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.post("/block", authenticate, requireAdmin, (req: any, res) => {
+router.post("/block", authenticate, requireAdmin, async (req: any, res) => {
   try {
     const { ip } = req.body;
     if (!ip) return res.status(400).json({ error: "IP is required" });
     
-    db.prepare("INSERT OR IGNORE INTO blocked_ips (ip) VALUES (?)").run(ip);
+    await db.prepare("INSERT INTO blocked_ips (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING").run(ip);
     logAction('block', 'ip', ip, `Manually blocked IP: ${ip}`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
   } catch (error: any) {
@@ -28,13 +28,13 @@ router.post("/block", authenticate, requireAdmin, (req: any, res) => {
   }
 });
 
-router.post("/unblock", authenticate, requireAdmin, (req: any, res) => {
+router.post("/unblock", authenticate, requireAdmin, async (req: any, res) => {
   try {
     const { ip } = req.body;
     if (!ip) return res.status(400).json({ error: "IP is required" });
     
-    db.prepare("DELETE FROM blocked_ips WHERE ip = ?").run(ip);
-    db.prepare("DELETE FROM login_attempts WHERE ip = ?").run(ip);
+    await db.prepare("DELETE FROM blocked_ips WHERE ip = ?").run(ip);
+    await db.prepare("DELETE FROM login_attempts WHERE ip = ?").run(ip);
     logAction('unblock', 'ip', ip, `Unblocked IP: ${ip}`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
   } catch (error: any) {

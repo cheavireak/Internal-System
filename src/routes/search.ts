@@ -3,7 +3,7 @@ import { db } from '../db.js';
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const query = req.query.q as string;
   
   if (!query || query.length < 2) {
@@ -15,7 +15,7 @@ router.get('/', (req, res) => {
 
   try {
     // Search Users
-    const users = db.prepare(`
+    const users = await db.prepare(`
       SELECT id, name, email, role 
       FROM users 
       WHERE (name LIKE ? OR email LIKE ?) AND deleted_at IS NULL
@@ -34,7 +34,7 @@ router.get('/', (req, res) => {
     });
 
     // Search Customers
-    const customers = db.prepare(`
+    const customers = await db.prepare(`
       SELECT id, customer_name, pipeline_stage, status 
       FROM customers 
       WHERE (customer_name LIKE ? OR content LIKE ? OR tags LIKE ?) AND deleted_at IS NULL
@@ -63,7 +63,7 @@ router.get('/', (req, res) => {
     });
 
     // Search Audit Logs (for admin context mostly, but useful)
-    const logs = db.prepare(`
+    const logs = await db.prepare(`
       SELECT id, action, entity, details, timestamp 
       FROM audit_logs 
       WHERE details LIKE ? OR action LIKE ?

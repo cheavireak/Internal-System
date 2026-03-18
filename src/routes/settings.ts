@@ -7,10 +7,10 @@ import { logAction } from "../utils/audit.js";
 const router = express.Router();
 
 // Get all system settings
-router.get("/", authenticate, (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   console.log("Fetching system settings");
   try {
-    const settings = db.prepare("SELECT * FROM system_settings").all() as any[];
+    const settings = await db.prepare("SELECT * FROM system_settings").all() as any[];
     console.log("Settings found:", settings);
     const settingsObj = settings.reduce((acc, curr) => {
       acc[curr.key] = JSON.parse(curr.value);
@@ -24,10 +24,10 @@ router.get("/", authenticate, (req, res) => {
 });
 
 // Get a specific system setting
-router.get("/:key", authenticate, (req, res) => {
+router.get("/:key", authenticate, async (req, res) => {
   try {
     const { key } = req.params;
-    const setting = db.prepare("SELECT value FROM system_settings WHERE key = ?").get(key) as any;
+    const setting = await db.prepare("SELECT value FROM system_settings WHERE key = ?").get(key) as any;
     if (setting) {
       res.json(JSON.parse(setting.value));
     } else {
@@ -39,7 +39,7 @@ router.get("/:key", authenticate, (req, res) => {
 });
 
 // Update a system setting
-router.put("/:key", authenticate, requireAdmin, (req, res) => {
+router.put("/:key", authenticate, requireAdmin, async (req, res) => {
   try {
     const { key } = req.params;
     const value = req.body; // Expecting the full body object as the value
@@ -55,11 +55,11 @@ router.put("/:key", authenticate, requireAdmin, (req, res) => {
       }
     }
     
-    const existing = db.prepare("SELECT key FROM system_settings WHERE key = ?").get(key);
+    const existing = await db.prepare("SELECT key FROM system_settings WHERE key = ?").get(key);
     if (existing) {
-      db.prepare("UPDATE system_settings SET value = ? WHERE key = ?").run(JSON.stringify(value), key);
+      await db.prepare("UPDATE system_settings SET value = ? WHERE key = ?").run(JSON.stringify(value), key);
     } else {
-      db.prepare("INSERT INTO system_settings (key, value) VALUES (?, ?)").run(key, JSON.stringify(value));
+      await db.prepare("INSERT INTO system_settings (key, value) VALUES (?, ?)").run(key, JSON.stringify(value));
     }
     
     let details = `Updated setting: ${key}`;

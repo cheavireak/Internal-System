@@ -3,12 +3,12 @@ import { db } from '../db.js';
 
 const router = express.Router();
 
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const customerId = req.params.id;
 
   try {
     // Get customer creation info
-    const customer = db.prepare('SELECT create_date, customer_name FROM customers WHERE id = ?').get(customerId) as any;
+    const customer = await db.prepare('SELECT create_date, customer_name FROM customers WHERE id = ?').get(customerId) as any;
     
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
@@ -30,7 +30,7 @@ router.get('/:id', (req, res) => {
     }
 
     // Get audit logs
-    const logs = db.prepare(`
+    const logs = await db.prepare(`
       SELECT id, action, details, userName, timestamp 
       FROM audit_logs 
       WHERE entity = 'customer' AND entityId = ?

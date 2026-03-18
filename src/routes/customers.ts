@@ -10,7 +10,7 @@ import fs from "fs";
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
-router.get("/", authenticate, (req: any, res) => {
+router.get("/", authenticate, async (req: any, res) => {
   const { pipeline_stage, page, limit = 50, highlight } = req.query;
   let query = "SELECT * FROM customers WHERE deleted_at IS NULL";
   let countQuery = "SELECT COUNT(*) as total FROM customers WHERE deleted_at IS NULL";
@@ -31,7 +31,7 @@ router.get("/", authenticate, (req: any, res) => {
     // Find the row number of the highlighted customer to determine its page
     const allIdsQuery = `SELECT id FROM customers WHERE deleted_at IS NULL ${pipeline_stage ? "AND pipeline_stage = ?" : ""} ORDER BY create_date DESC`;
     const allIdsParams = pipeline_stage ? [pipeline_stage] : [];
-    const allIds = db.prepare(allIdsQuery).all(...allIdsParams) as { id: number }[];
+    const allIds = await db.prepare(allIdsQuery).all(...allIdsParams) as { id: number }[];
     
     const index = allIds.findIndex(c => c.id === Number(highlight));
     if (index !== -1) {
@@ -40,7 +40,7 @@ router.get("/", authenticate, (req: any, res) => {
   }
 
   if (page || highlight) {
-    const totalResult = db.prepare(countQuery).get(...params) as { total: number };
+    const totalResult = await db.prepare(countQuery).get(...params) as { total: number };
     total = totalResult.total;
     
     const offset = (targetPage - 1) * Number(limit);
@@ -48,7 +48,7 @@ router.get("/", authenticate, (req: any, res) => {
     params.push(Number(limit), offset);
   }
   
-  const customers = db.prepare(query).all(...params) as any[];
+  const customers = await db.prepare(query).all(...params) as any[];
   
   const parsedCustomers = customers.map(c => {
     let customData = {};
@@ -73,8 +73,8 @@ router.get("/", authenticate, (req: any, res) => {
 });
 
 // Get deleted customers (Trash)
-router.get("/trash", authenticate, (req: any, res) => {
-  const customers = db.prepare("SELECT * FROM customers WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC").all() as any[];
+router.get("/trash", authenticate, async (req: any, res) => {
+  const customers = await db.prepare("SELECT * FROM customers WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC").all() as any[];
   const parsedCustomers = customers.map(c => {
     let customData = {};
     try {
@@ -88,12 +88,12 @@ router.get("/trash", authenticate, (req: any, res) => {
 });
 
 // Restore deleted customer
-router.post("/:id/restore", authenticate, (req: any, res) => {
+router.post("/:id/restore", authenticate, async (req: any, res) => {
   try {
-    const currentCustomer = db.prepare("SELECT customer_name FROM customers WHERE id = ?").get(req.params.id) as any;
+    const currentCustomer = await db.prepare("SELECT customer_name FROM customers WHERE id = ?").get(req.params.id) as any;
     if (!currentCustomer) return res.status(404).json({ error: "Customer not found" });
 
-    db.prepare("UPDATE customers SET deleted_at = NULL WHERE id = ?").run(req.params.id);
+    await db.prepare("UPDATE customers SET deleted_at = NULL WHERE id = ?").run(req.params.id);
     logAction('restore', 'customer', req.params.id, `Restored customer: ${currentCustomer.customer_name}`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
   } catch (e: any) {
@@ -101,7 +101,7 @@ router.post("/:id/restore", authenticate, (req: any, res) => {
   }
 });
 
-router.post("/", authenticate, (req: any, res) => {
+router.post("/", authenticate, async (req: any, res) => {
   try {
     const data = req.body;
     const createDate = data.create_date || new Date().toISOString().split('T')[0];
@@ -124,7 +124,7 @@ router.post("/", authenticate, (req: any, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `);
     
-    const result = stmt.run(
+    const result = await stmt.run(
       createDate,
       data.customer_name || 'Unnamed Customer',
       data.type || '',
@@ -155,7 +155,7 @@ router.post("/", authenticate, (req: any, res) => {
   }
 });
 
-router.put("/:id", authenticate, (req: any, res) => {
+router.put("/:id", authenticate, async (req: any, res) => {
   const data = req.body;
   
   // Extract custom data
@@ -168,7 +168,7 @@ router.put("/:id", authenticate, (req: any, res) => {
   });
 
   // Check if pipeline_stage changed or if stage_updated_at was explicitly changed
-  const currentCustomer = db.prepare("SELECT * FROM customers WHERE id = ?").get(req.params.id) as any;
+  const currentCustomer = await db.prepare("SELECT * FROM customers WHERE id = ?").get(req.params.id) as any;
   
   // Calculate changed fields
   const changedFields = [];
@@ -192,7 +192,7 @@ router.put("/:id", authenticate, (req: any, res) => {
         stage_updated_at = ?, custom_data = ?
       WHERE id = ?
     `);
-    stmt.run(
+    await stmt.run(
       data.customer_name, data.type, data.content, data.feedback_from_customer,
       data.last_update, data.status, data.completed_date, data.pro_account,
       data.sale_owner, data.sale_updated, data.other, data.pipeline_stage,
@@ -220,7 +220,7 @@ router.put("/:id", authenticate, (req: any, res) => {
         custom_data = ?
       WHERE id = ?
     `);
-    stmt.run(
+    await stmt.run(
       data.customer_name, data.type, data.content, data.feedback_from_customer,
       data.last_update, data.status, data.completed_date, data.pro_account,
       data.sale_owner, data.sale_updated, data.other, data.pipeline_stage,
@@ -236,24 +236,24 @@ router.put("/:id", authenticate, (req: any, res) => {
   res.json({ success: true });
 });
 
-router.delete("/:id", authenticate, (req: any, res) => {
-  const currentCustomer = db.prepare("SELECT customer_name FROM customers WHERE id = ?").get(req.params.id) as any;
-  db.prepare("UPDATE customers SET deleted_at = ? WHERE id = ?").run(new Date().toISOString(), req.params.id);
+router.delete("/:id", authenticate, async (req: any, res) => {
+  const currentCustomer = await db.prepare("SELECT customer_name FROM customers WHERE id = ?").get(req.params.id) as any;
+  await db.prepare("UPDATE customers SET deleted_at = ? WHERE id = ?").run(new Date().toISOString(), req.params.id);
   
   logAction('delete', 'customer', req.params.id, `Soft deleted customer: ${currentCustomer?.customer_name || 'Unknown'}`, req.user.id, req.user.name, getClientIp(req));
   res.json({ success: true });
 });
 
-router.delete("/:id/permanent", authenticate, (req: any, res) => {
-  const currentCustomer = db.prepare("SELECT customer_name FROM customers WHERE id = ?").get(req.params.id) as any;
-  db.prepare("DELETE FROM customers WHERE id = ?").run(req.params.id);
+router.delete("/:id/permanent", authenticate, async (req: any, res) => {
+  const currentCustomer = await db.prepare("SELECT customer_name FROM customers WHERE id = ?").get(req.params.id) as any;
+  await db.prepare("DELETE FROM customers WHERE id = ?").run(req.params.id);
   
   logAction('delete_permanent', 'customer', req.params.id, `Permanently deleted customer: ${currentCustomer?.customer_name || 'Unknown'}`, req.user.id, req.user.name, getClientIp(req));
   res.json({ success: true });
 });
 
-router.delete("/trash/clear", authenticate, (req: any, res) => {
-  db.prepare("DELETE FROM customers WHERE deleted_at IS NOT NULL").run();
+router.delete("/trash/clear", authenticate, async (req: any, res) => {
+  await db.prepare("DELETE FROM customers WHERE deleted_at IS NOT NULL").run();
   logAction('clear_trash', 'customer', null, `Cleared customer trash`, req.user.id, req.user.name, getClientIp(req));
   res.json({ success: true });
 });

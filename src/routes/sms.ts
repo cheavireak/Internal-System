@@ -24,11 +24,11 @@ function calculateSmsParts(text: string): number {
 }
 
 // Get SMS Config
-router.get("/config", authenticate, (req: any, res) => {
+router.get("/config", authenticate, async (req: any, res) => {
   if (!req.user.is_superadmin && !req.user.permissions?.menus?.includes('SMS')) {
     return res.status(401).json({ error: "Access denied" });
   }
-  const configRow = db.prepare("SELECT value FROM system_settings WHERE key = 'sms_config'").get() as any;
+  const configRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'sms_config'").get() as any;
   let config = { url: "https://sandbox.mekongsms.com/api/postsms.aspx", username: "", pass: "", int: "0" };
   if (configRow) {
     config = JSON.parse(configRow.value);
@@ -37,11 +37,11 @@ router.get("/config", authenticate, (req: any, res) => {
 });
 
 // Get SMS Test Config
-router.get("/config-test", authenticate, (req: any, res) => {
+router.get("/config-test", authenticate, async (req: any, res) => {
   if (!req.user.is_superadmin && !req.user.permissions?.menus?.includes('SMS')) {
     return res.status(401).json({ error: "Access denied" });
   }
-  const configRow = db.prepare("SELECT value FROM system_settings WHERE key = 'sms_test_config'").get() as any;
+  const configRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'sms_test_config'").get() as any;
   let config = { 
     url: "", 
     username: "", 
@@ -71,27 +71,27 @@ router.get("/config-test", authenticate, (req: any, res) => {
 });
 
 // Save SMS Config
-router.post("/config", authenticate, (req: any, res) => {
+router.post("/config", authenticate, async (req: any, res) => {
   if (!req.user.is_superadmin && !req.user.permissions?.menus?.includes('SMS')) {
     return res.status(401).json({ error: "Access denied" });
   }
   const { url, username, pass, int } = req.body;
   const config = { url, username, pass, int };
   
-  db.prepare("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('sms_config', ?)").run(JSON.stringify(config));
+  await db.prepare("INSERT INTO system_settings (key, value) VALUES ('sms_config', ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value").run(JSON.stringify(config));
   logAction('update', 'sms_config', null, `Updated SMS Configuration`, req.user.id, req.user.name, getClientIp(req));
   res.json({ success: true });
 });
 
 // Save SMS Test Config
-router.post("/config-test", authenticate, (req: any, res) => {
+router.post("/config-test", authenticate, async (req: any, res) => {
   if (!req.user.is_superadmin && !req.user.permissions?.menus?.includes('SMS')) {
     return res.status(401).json({ error: "Access denied" });
   }
   const { url, username, password, messageType, gateways } = req.body;
   const config = { url, username, password, messageType, gateways };
   
-  db.prepare("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('sms_test_config', ?)").run(JSON.stringify(config));
+  await db.prepare("INSERT INTO system_settings (key, value) VALUES ('sms_test_config', ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value").run(JSON.stringify(config));
   logAction('update', 'sms_test_config', null, `Updated SMS Test Configuration`, req.user.id, req.user.name, getClientIp(req));
   res.json({ success: true });
 });
@@ -108,7 +108,7 @@ router.post("/send", authenticate, async (req: any, res) => {
     return res.status(400).json({ error: "Sender, phone number, and content are required." });
   }
 
-  const configRow = db.prepare("SELECT value FROM system_settings WHERE key = 'sms_config'").get() as any;
+  const configRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'sms_config'").get() as any;
   if (!configRow) {
     return res.status(400).json({ error: "SMS configuration is missing. Please configure it first." });
   }
@@ -140,7 +140,7 @@ router.post("/send", authenticate, async (req: any, res) => {
       const smsParts = calculateSmsParts(smstext);
       const time = new Date().toISOString();
       
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO sms_logs (time, content, phone_number, message_id, sms_parts, sender)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(time, smstext, gsm, messageId, smsParts, sender);
@@ -169,7 +169,7 @@ router.post("/send-test", authenticate, async (req: any, res) => {
     return res.status(400).json({ error: "Sender, phone number, content, and gateway are required." });
   }
 
-  const configRow = db.prepare("SELECT value FROM system_settings WHERE key = 'sms_test_config'").get() as any;
+  const configRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'sms_test_config'").get() as any;
   if (!configRow) {
     return res.status(400).json({ error: "SMS Test configuration is missing. Please configure it first." });
   }
@@ -203,7 +203,7 @@ router.post("/send-test", authenticate, async (req: any, res) => {
       const smsParts = calculateSmsParts(smstext);
       const time = new Date().toISOString();
       
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO sms_logs (time, content, phone_number, message_id, sms_parts, sender)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(time, smstext, gsm, messageId, smsParts, sender);
@@ -221,11 +221,11 @@ router.post("/send-test", authenticate, async (req: any, res) => {
 });
 
 // Get SMS Logs
-router.get("/logs", authenticate, (req: any, res) => {
+router.get("/logs", authenticate, async (req: any, res) => {
   if (!req.user.is_superadmin && !req.user.permissions?.menus?.includes('SMS')) {
     return res.status(401).json({ error: "Access denied" });
   }
-  const logs = db.prepare("SELECT * FROM sms_logs ORDER BY time DESC").all();
+  const logs = await db.prepare("SELECT * FROM sms_logs ORDER BY time DESC").all();
   res.json(logs);
 });
 

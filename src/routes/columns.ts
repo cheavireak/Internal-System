@@ -6,9 +6,9 @@ import { getClientIp } from "../utils/ip.js";
 
 const router = express.Router();
 
-router.get("/:stage", authenticate, (req: any, res) => {
+router.get("/:stage", authenticate, async (req: any, res) => {
   const stage = req.params.stage;
-  const row = db.prepare("SELECT columns_json FROM column_settings WHERE pipeline_stage = ?").get(stage) as any;
+  const row = await db.prepare("SELECT columns_json FROM column_settings WHERE pipeline_stage = ?").get(stage) as any;
   if (row) {
     res.json(JSON.parse(row.columns_json));
   } else {
@@ -16,7 +16,7 @@ router.get("/:stage", authenticate, (req: any, res) => {
   }
 });
 
-router.post("/:stage", authenticate, (req: any, res) => {
+router.post("/:stage", authenticate, async (req: any, res) => {
   const user = req.user;
   let permissions = {};
   try {
@@ -31,15 +31,15 @@ router.post("/:stage", authenticate, (req: any, res) => {
   const stage = req.params.stage;
   const columns = req.body;
   
-  const existing = db.prepare("SELECT id FROM column_settings WHERE pipeline_stage = ?").get(stage) as any;
+  const existing = await db.prepare("SELECT id FROM column_settings WHERE pipeline_stage = ?").get(stage) as any;
   if (existing) {
-    db.prepare("UPDATE column_settings SET columns_json = ? WHERE pipeline_stage = ?").run(JSON.stringify(columns), stage);
+    await db.prepare("UPDATE column_settings SET columns_json = ? WHERE pipeline_stage = ?").run(JSON.stringify(columns), stage);
   } else {
-    db.prepare("INSERT INTO column_settings (pipeline_stage, columns_json) VALUES (?, ?)").run(stage, JSON.stringify(columns));
+    await db.prepare("INSERT INTO column_settings (pipeline_stage, columns_json) VALUES (?, ?)").run(stage, JSON.stringify(columns));
   }
 
   // Update hidden state for other stages
-  const allSettings = db.prepare("SELECT pipeline_stage, columns_json FROM column_settings WHERE pipeline_stage != ?").all(stage) as any[];
+  const allSettings = await db.prepare("SELECT pipeline_stage, columns_json FROM column_settings WHERE pipeline_stage != ?").all(stage) as any[];
   for (const setting of allSettings) {
     let otherColumns = JSON.parse(setting.columns_json);
     let changed = false;
@@ -51,7 +51,7 @@ router.post("/:stage", authenticate, (req: any, res) => {
       }
     }
     if (changed) {
-      db.prepare("UPDATE column_settings SET columns_json = ? WHERE pipeline_stage = ?").run(JSON.stringify(otherColumns), setting.pipeline_stage);
+      await db.prepare("UPDATE column_settings SET columns_json = ? WHERE pipeline_stage = ?").run(JSON.stringify(otherColumns), setting.pipeline_stage);
     }
   }
 

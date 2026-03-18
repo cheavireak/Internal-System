@@ -10,9 +10,9 @@ import { getClientIp } from "../utils/ip.js";
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
-router.get("/summary", authenticate, (req: any, res) => {
+router.get("/summary", authenticate, async (req: any, res) => {
   const { startDate, endDate } = req.query;
-  const customers = db.prepare("SELECT id, customer_name, pipeline_stage, create_date, last_update, is_imported, stage_updated_at FROM customers WHERE deleted_at IS NULL").all() as any[];
+  const customers = await db.prepare("SELECT id, customer_name, pipeline_stage, create_date, last_update, is_imported, stage_updated_at FROM customers WHERE deleted_at IS NULL").all() as any[];
   console.log("DEBUG: Summary route - customers count:", customers.length);
 
   const intervals: any[] = [];
@@ -251,8 +251,8 @@ router.get("/summary", authenticate, (req: any, res) => {
   });
 });
 
-router.get("/export", authenticate, (req: any, res) => {
-  const customers = db.prepare("SELECT * FROM customers WHERE deleted_at IS NULL ORDER BY create_date DESC").all();
+router.get("/export", authenticate, async (req: any, res) => {
+  const customers = await db.prepare("SELECT * FROM customers WHERE deleted_at IS NULL ORDER BY create_date DESC").all();
   
   const ws = xlsx.utils.json_to_sheet(customers);
   const wb = xlsx.utils.book_new();
@@ -265,7 +265,7 @@ router.get("/export", authenticate, (req: any, res) => {
   res.send(buffer);
 });
 
-router.post("/import-json", authenticate, (req: any, res) => {
+router.post("/import-json", authenticate, async (req: any, res) => {
   const { data, pipelineStage } = req.body;
   if (!data || !Array.isArray(data)) {
     return res.status(400).json({ error: "Invalid data format" });
@@ -283,7 +283,7 @@ router.post("/import-json", authenticate, (req: any, res) => {
     
     const standardKeys = ['create_date', 'customer_name', 'type', 'content', 'feedback_from_customer', 'last_update', 'status', 'completed_date', 'pro_account', 'sale_owner', 'sale_updated', 'other', 'pipeline_stage', 'priority', 'next_follow_up_date', 'tags', 'status_in_production', 'date_to_production', 'date_have_traffic'];
 
-    const insertMany = db.transaction((rows: any[]) => {
+    const insertMany = db.transaction(async (rows: any[]) => {
       for (const row of rows) {
         const customData: any = {};
         Object.keys(row).forEach(key => {
@@ -292,7 +292,7 @@ router.post("/import-json", authenticate, (req: any, res) => {
           }
         });
 
-        stmt.run(
+        await stmt.run(
           row.create_date || new Date().toISOString().split('T')[0],
           row.customer_name || 'Unknown',
           row.type || '',
@@ -317,7 +317,7 @@ router.post("/import-json", authenticate, (req: any, res) => {
       }
     });
     
-    insertMany(data);
+    await insertMany(data);
     logAction('import', 'customer', null, `Imported ${data.length} customers via Excel`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true, count: data.length });
   } catch (e: any) {
@@ -325,7 +325,7 @@ router.post("/import-json", authenticate, (req: any, res) => {
   }
 });
 
-router.post("/import", authenticate, upload.single("file"), (req: any, res) => {
+router.post("/import", authenticate, upload.single("file"), async (req: any, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
   
   const sheetName = req.body.sheetName;
@@ -347,9 +347,9 @@ router.post("/import", authenticate, upload.single("file"), (req: any, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)
     `);
     
-    const insertMany = db.transaction((rows: any[]) => {
+    const insertMany = db.transaction(async (rows: any[]) => {
       for (const row of rows) {
-        stmt.run(
+        await stmt.run(
           row['Create Date'] || row.create_date || new Date().toISOString().split('T')[0],
           row['Customer'] || row.customer_name || 'Unknown',
           row['Type'] || row.type || '',
@@ -370,7 +370,7 @@ router.post("/import", authenticate, upload.single("file"), (req: any, res) => {
       }
     });
     
-    insertMany(data);
+    await insertMany(data);
     fs.unlinkSync(req.file.path);
     
     logAction('import', 'customer', null, `Imported ${data.length} customers via Excel`, req.user.id, req.user.name, getClientIp(req));

@@ -344,7 +344,7 @@ export default function Settings({ currentUser, refreshHiddenMenus, hiddenMenus 
                 <label className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2">
                   <Upload className="w-4 h-4" />
                   Upload Backup
-                  <input type="file" accept=".sqlite" className="hidden" onChange={handleUploadBackup} />
+                  <input type="file" accept=".sql" className="hidden" onChange={handleUploadBackup} />
                 </label>
               )}
               {currentUser?.role === 'admin' && (

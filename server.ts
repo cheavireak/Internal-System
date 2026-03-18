@@ -15,10 +15,13 @@ import settingsRoutes from "./src/routes/settings.js";
 import backupRoutes from "./src/routes/backup.js";
 import blockedIpsRoutes from "./src/routes/blockedIps.js";
 import { startScheduler } from "./src/scheduler.js";
+import { initSchema } from "./src/db.js";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  await initSchema();
 
   startScheduler();
 

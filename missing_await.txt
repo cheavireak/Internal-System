@@ -1,0 +1,25 @@
+src/routes/search.ts:    const users = db.prepare(`
+src/routes/search.ts:    const customers = db.prepare(`
+src/routes/search.ts:    const logs = db.prepare(`
+src/routes/internalReports.ts:    const stmt = db.prepare(`
+src/routes/internalReports.ts:    const stmt = db.prepare(`
+src/routes/internalReports.ts:    const stmt = db.prepare(`
+src/routes/internalReports.ts:    const stmt = db.prepare(`
+src/routes/reports.ts:  const stmt = db.prepare("INSERT INTO support_reports (date, task, time, result, type) VALUES (?, ?, ?, ?, ?)");
+src/routes/reports.ts:  const stmt = db.prepare("INSERT INTO task_reports (task_assign, time, result, created_at) VALUES (?, ?, ?, ?)");
+src/routes/reports.ts:  const stmt = db.prepare("INSERT INTO internal_reports (date, action_tasks, result, created_at) VALUES (?, ?, ?, ?)");
+src/routes/customers.ts:    const stmt = db.prepare(`
+src/routes/customers.ts:    stmt = db.prepare(`
+src/routes/customers.ts:    stmt = db.prepare(`
+src/routes/kpi.ts:    const stmt = db.prepare(`
+src/routes/kpi.ts:    const stmt = db.prepare(`
+src/routes/kpi.ts:    const stmt = db.prepare(`
+src/routes/kpi.ts:    const stmt = db.prepare(`
+src/routes/audit.ts:    db.prepare(`
+src/routes/timeline.ts:    const logs = db.prepare(`
+src/routes/sms.ts:      db.prepare(`
+src/routes/sms.ts:      db.prepare(`
+src/routes/backup.ts:        dbModule.db.prepare("UPDATE users SET is_superadmin = ?, role = ?, permissions = ?, name = ? WHERE email = ?").run(
+src/routes/backup.ts:        dbModule.db.prepare("INSERT INTO users (email, password_hash, role, name, permissions, is_superadmin) VALUES (?, ?, ?, ?, ?, ?)").run(
+src/routes/customerOps.ts:    const stmt = db.prepare(`
+src/routes/customerOps.ts:    const stmt = db.prepare(`

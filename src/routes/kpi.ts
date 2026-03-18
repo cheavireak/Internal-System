@@ -10,7 +10,7 @@ import fs from "fs";
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
-router.get("/", authenticate, (req: any, res) => {
+router.get("/", authenticate, async (req: any, res) => {
   const { month, page = 1, search } = req.query;
   const pageSize = 10;
   const offset = (page - 1) * pageSize;
@@ -32,12 +32,12 @@ router.get("/", authenticate, (req: any, res) => {
     params.push(searchParam, searchParam, searchParam);
   }
 
-  const total = db.prepare(countQuery).get(...params) as any;
+  const total = await db.prepare(countQuery).get(...params) as any;
   
   query += " ORDER BY create_date DESC, id DESC LIMIT ? OFFSET ?";
-  const records = db.prepare(query).all(...params, pageSize, offset) as any[];
+  const records = await db.prepare(query).all(...params, pageSize, offset) as any[];
 
-  const months = db.prepare("SELECT DISTINCT strftime('%Y-%m', create_date) as month FROM kpi_records WHERE deleted_at IS NULL ORDER BY month DESC").all() as any[];
+  const months = await db.prepare("SELECT DISTINCT strftime('%Y-%m', create_date) as month FROM kpi_records WHERE deleted_at IS NULL ORDER BY month DESC").all() as any[];
 
   res.json({
     records,
@@ -47,7 +47,7 @@ router.get("/", authenticate, (req: any, res) => {
   });
 });
 
-router.post("/", authenticate, (req: any, res) => {
+router.post("/", authenticate, async (req: any, res) => {
   try {
     const { create_date, company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day } = req.body;
     
@@ -57,14 +57,14 @@ router.post("/", authenticate, (req: any, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
-    const result = stmt.run(create_date, company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day || 'Y');
+    const result = await stmt.run(create_date, company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day || 'Y');
     res.json({ id: result.lastInsertRowid });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
 
-router.post("/import", authenticate, upload.single("file"), (req: any, res) => {
+router.post("/import", authenticate, upload.single("file"), async (req: any, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     
@@ -99,8 +99,8 @@ router.post("/import", authenticate, upload.single("file"), (req: any, res) => {
       return String(val);
     };
 
-    data.forEach(row => {
-      stmt.run(
+    for (const row of data) {
+      await stmt.run(
         parseDate(row.Date || row.create_date),
         row.Company || row.company || '',
         row.Contact || row.contact_name || '',
@@ -112,7 +112,7 @@ router.post("/import", authenticate, upload.single("file"), (req: any, res) => {
         row.Solution || row.solution || '',
         row["Done?"] || row.resolved_same_day || 'Y'
       );
-    });
+    }
     
     fs.unlinkSync(req.file.path);
     logAction('import', 'kpi', null, `Imported ${data.length} KPI records`, req.user.id, req.user.name, getClientIp(req));
@@ -122,7 +122,7 @@ router.post("/import", authenticate, upload.single("file"), (req: any, res) => {
   }
 });
 
-router.post("/import-json", authenticate, (req: any, res) => {
+router.post("/import-json", authenticate, async (req: any, res) => {
   try {
     const { data } = req.body;
     if (!Array.isArray(data)) return res.status(400).json({ error: "Invalid data format" });
@@ -133,9 +133,9 @@ router.post("/import-json", authenticate, (req: any, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    db.transaction(() => {
-      data.forEach(row => {
-        stmt.run(
+    await db.transaction(async () => {
+      for (const row of data) {
+        await stmt.run(
           row.create_date || new Date().toISOString().split('T')[0],
           row.company || '',
           row.contact_name || '',
@@ -147,7 +147,7 @@ router.post("/import-json", authenticate, (req: any, res) => {
           row.solution || '',
           row.resolved_same_day || 'Y'
         );
-      });
+      }
     })();
 
     logAction('import', 'kpi', null, `Imported ${data.length} KPI records via Excel`, req.user.id, req.user.name, getClientIp(req));
@@ -157,7 +157,7 @@ router.post("/import-json", authenticate, (req: any, res) => {
   }
 });
 
-router.get("/trash", authenticate, (req: any, res) => {
+router.get("/trash", authenticate, async (req: any, res) => {
   const { page = 1, search } = req.query;
   const pageSize = 10;
   const offset = (page - 1) * pageSize;
@@ -173,10 +173,10 @@ router.get("/trash", authenticate, (req: any, res) => {
     params.push(searchParam, searchParam, searchParam);
   }
 
-  const total = db.prepare(countQuery).get(...params) as any;
+  const total = await db.prepare(countQuery).get(...params) as any;
   
   query += " ORDER BY deleted_at DESC LIMIT ? OFFSET ?";
-  const records = db.prepare(query).all(...params, pageSize, offset) as any[];
+  const records = await db.prepare(query).all(...params, pageSize, offset) as any[];
 
   res.json({
     records,
@@ -185,9 +185,9 @@ router.get("/trash", authenticate, (req: any, res) => {
   });
 });
 
-router.post("/:id/restore", authenticate, (req: any, res) => {
+router.post("/:id/restore", authenticate, async (req: any, res) => {
   try {
-    db.prepare("UPDATE kpi_records SET deleted_at = NULL WHERE id = ?").run(req.params.id);
+    await db.prepare("UPDATE kpi_records SET deleted_at = NULL WHERE id = ?").run(req.params.id);
     logAction('restore', 'kpi', req.params.id, 'Restored KPI record', req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
   } catch (e: any) {
@@ -195,9 +195,9 @@ router.post("/:id/restore", authenticate, (req: any, res) => {
   }
 });
 
-router.delete("/:id/force", authenticate, (req: any, res) => {
+router.delete("/:id/force", authenticate, async (req: any, res) => {
   try {
-    db.prepare("DELETE FROM kpi_records WHERE id = ?").run(req.params.id);
+    await db.prepare("DELETE FROM kpi_records WHERE id = ?").run(req.params.id);
     logAction('delete_permanent', 'kpi', req.params.id, 'Permanently deleted KPI record', req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
   } catch (e: any) {
@@ -205,9 +205,9 @@ router.delete("/:id/force", authenticate, (req: any, res) => {
   }
 });
 
-router.delete("/trash/empty", authenticate, (req: any, res) => {
+router.delete("/trash/empty", authenticate, async (req: any, res) => {
   try {
-    db.prepare("DELETE FROM kpi_records WHERE deleted_at IS NOT NULL").run();
+    await db.prepare("DELETE FROM kpi_records WHERE deleted_at IS NOT NULL").run();
     logAction('empty_trash', 'kpi', null, 'Emptied KPI trash', req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true });
   } catch (e: any) {
@@ -215,7 +215,7 @@ router.delete("/trash/empty", authenticate, (req: any, res) => {
   }
 });
 
-router.get("/export", authenticate, (req: any, res) => {
+router.get("/export", authenticate, async (req: any, res) => {
   const { month } = req.query;
   let query = "SELECT * FROM kpi_records WHERE deleted_at IS NULL";
   let params: any[] = [];
@@ -226,7 +226,7 @@ router.get("/export", authenticate, (req: any, res) => {
   }
   query += " ORDER BY create_date DESC";
   
-  const records = db.prepare(query).all(...params) as any[];
+  const records = await db.prepare(query).all(...params) as any[];
   
   const worksheet = xlsx.utils.json_to_sheet(records.map(r => ({
     create_date: r.create_date,
@@ -251,9 +251,9 @@ router.get("/export", authenticate, (req: any, res) => {
   res.send(buffer);
 });
 
-router.get("/:id", authenticate, (req: any, res) => {
+router.get("/:id", authenticate, async (req: any, res) => {
   try {
-    const record = db.prepare("SELECT * FROM kpi_records WHERE id = ?").get(req.params.id);
+    const record = await db.prepare("SELECT * FROM kpi_records WHERE id = ?").get(req.params.id);
     if (!record) return res.status(404).json({ error: "Record not found" });
     res.json(record);
   } catch (e: any) {
@@ -261,7 +261,7 @@ router.get("/:id", authenticate, (req: any, res) => {
   }
 });
 
-router.put("/:id", authenticate, (req: any, res) => {
+router.put("/:id", authenticate, async (req: any, res) => {
   try {
     const { create_date, company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day } = req.body;
     
@@ -271,15 +271,15 @@ router.put("/:id", authenticate, (req: any, res) => {
       WHERE id = ?
     `);
     
-    stmt.run(create_date, company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day, req.params.id);
+    await stmt.run(create_date, company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day, req.params.id);
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
 
-router.delete("/:id", authenticate, (req: any, res) => {
-  db.prepare("UPDATE kpi_records SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+router.delete("/:id", authenticate, async (req: any, res) => {
+  await db.prepare("UPDATE kpi_records SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
   logAction('delete', 'kpi', req.params.id, 'Soft deleted KPI record', req.user.id, req.user.name, getClientIp(req));
   res.json({ success: true });
 });
