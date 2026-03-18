@@ -107,24 +107,64 @@ router.post("/restore", authenticate, requireAdmin, async (req: any, res) => {
       const tables = sqliteDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as any[];
       
       for (const table of tables) {
-        const tableName = table.name;
+        const tableName = table.name.toLowerCase();
         if (tableName === 'sqlite_sequence') continue;
         
         console.log(`DEBUG: Migrating table ${tableName}...`);
-        const rows = sqliteDb.prepare(`SELECT * FROM ${tableName}`).all() as any[];
+        const rows = sqliteDb.prepare(`SELECT * FROM ${table.name}`).all() as any[];
         
         if (rows.length === 0) continue;
         
         // Clear existing data in Postgres
         await dbModule.pool.query(`TRUNCATE TABLE ${tableName} RESTART IDENTITY CASCADE`);
         
-        const columns = Object.keys(rows[0]);
+        // Get column types from Postgres to identify date/timestamp columns
+        const tableInfo = await dbModule.pool.query(`
+          SELECT column_name, data_type 
+          FROM information_schema.columns 
+          WHERE table_name = $1
+        `, [tableName]);
+        
+        if (tableInfo.rows.length === 0) {
+          console.warn(`DEBUG: Table ${tableName} from SQLite does not exist in PostgreSQL. Skipping.`);
+          continue;
+        }
+        
+        const dateColumns = tableInfo.rows
+          .filter(r => r.data_type.toLowerCase().includes('date') || r.data_type.toLowerCase().includes('timestamp'))
+          .map(r => r.column_name);
+
+        const postgresColumns = tableInfo.rows.map(r => r.column_name);
+        const columns = Object.keys(rows[0]).filter(col => postgresColumns.includes(col));
+        
+        if (columns.length === 0) {
+          console.warn(`DEBUG: No matching columns found for table ${tableName}. Skipping.`);
+          continue;
+        }
+
         const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
         const insertSql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`;
         
         for (const row of rows) {
-          const values = columns.map(col => row[col]);
-          await dbModule.pool.query(insertSql, values);
+          const values = columns.map(col => {
+            let val = row[col];
+            // Sanitize date/timestamp columns
+            if (dateColumns.includes(col) && val && typeof val === 'string') {
+              const date = new Date(val);
+              if (isNaN(date.getTime())) {
+                console.warn(`DEBUG: Invalid date value "${val}" in column "${col}" for table "${tableName}". Setting to NULL.`);
+                return null;
+              }
+            }
+            return val;
+          });
+          try {
+            await dbModule.pool.query(insertSql, values);
+          } catch (insertError: any) {
+            console.error(`DEBUG: Error inserting into ${tableName}:`, insertError.message);
+            console.error(`DEBUG: Row data:`, JSON.stringify(row));
+            throw insertError;
+          }
         }
       }
       sqliteDb.close();
