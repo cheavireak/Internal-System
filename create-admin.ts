@@ -28,7 +28,7 @@ async function createAdmin() {
 
     await db.prepare(`
       INSERT INTO users (email, password_hash, role, name, is_superadmin, permissions)
-      VALUES (?, ?, 'admin', 'Admin User', true, '[]')
+      VALUES (?, ?, 'admin', 'Admin User', 1, '[]')
     `).run(email, hashedPassword);
     
     console.log("Super admin user created successfully!");
