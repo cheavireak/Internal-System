@@ -92,6 +92,17 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
   const formatForInput = (dateStr: any) => {
     if (!dateStr) return "";
     try {
+      // Handle dd-MMM-yyyy format if it comes from the UI/state
+      if (typeof dateStr === 'string' && dateStr.includes('-') && isNaN(Number(dateStr.split('-')[0]))) {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+          const day = parts[0];
+          const month = parts[1];
+          const year = parts[2];
+          const date = new Date(`${month} ${day}, ${year}`);
+          if (isValid(date)) return format(date, "yyyy-MM-dd");
+        }
+      }
       const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
       if (!isValid(date)) return "";
       return format(date, "yyyy-MM-dd");

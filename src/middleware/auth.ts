@@ -69,6 +69,7 @@ export const authenticate = async (req: any, res: any, next: any) => {
 
     req.user = {
       ...user,
+      name: user.name || user.email.split('@')[0],
       is_superadmin: !!user.is_superadmin,
       permissions
     };

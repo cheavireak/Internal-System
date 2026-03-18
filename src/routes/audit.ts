@@ -18,7 +18,7 @@ router.get("/", authenticate, async (req: any, res) => {
       entityId as "entityId", 
       details, 
       userId as "userId", 
-      userName as "userName", 
+      COALESCE(userName, userId::text, 'Unknown') as "userName", 
       timestamp, 
       ip_address
     FROM audit_logs 
