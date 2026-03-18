@@ -3,13 +3,13 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../config.js";
 
 // Middleware to authenticate
-export const authenticate = (req: any, res: any, next: any) => {
+export const authenticate = async (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "No token provided" });
   const token = authHeader.split(" ")[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const user = db.prepare("SELECT id, email, role, name, permissions, is_superadmin FROM users WHERE email = ?").get(decoded.email) as any;
+    const user = await db.prepare("SELECT id, email, role, name, permissions, is_superadmin FROM users WHERE email = ?").get(decoded.email) as any;
     if (!user) return res.status(401).json({ error: "User not found" });
     
     let permissions: any = {};
