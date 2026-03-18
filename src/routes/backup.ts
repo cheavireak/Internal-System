@@ -6,10 +6,7 @@ import path from "path";
 import multer from "multer";
 import { logAction } from "../utils/audit.js";
 import { getClientIp } from "../utils/ip.js";
-
-import { exec } from "child_process";
-import util from "util";
-const execAsync = util.promisify(exec);
+import { createPostgresBackup, restorePostgresBackup } from "../utils/backupUtils.js";
 
 const router = express.Router();
 const BACKUP_DIR = path.join(process.cwd(), "Backup_data");
@@ -63,12 +60,9 @@ router.post("/create", authenticate, requireAdmin, async (req: any, res) => {
       filename = `backup_${timestamp}.sql`;
     }
 
-    // Use pg_dump for PostgreSQL
-    const databaseUrl = process.env.DATABASE_URL || 'postgres://your_username:your_password@localhost:5432/internal-system';
     const backupPath = path.join(BACKUP_DIR, filename);
     
-    const pgDumpCmd = `pg_dump -d "${databaseUrl}" -F c -f "${backupPath}"`;
-    await execAsync(pgDumpCmd);
+    await createPostgresBackup(backupPath);
     
     const actionMsg = providedFilename ? `Overwrote backup: ${filename}` : `Created backup: ${filename}`;
     logAction(providedFilename ? 'update' : 'create', 'backup', null, actionMsg, req.user.id, req.user.name, getClientIp(req));
@@ -172,81 +166,7 @@ router.post("/restore", authenticate, requireAdmin, async (req: any, res) => {
     console.log("DEBUG: Current user before restore:", currentUser ? currentUser.email : "null");
     
     // RESTORE LOGIC
-    if (filename.endsWith('.sqlite') || filename.endsWith('.db')) {
-      console.log("DEBUG: Restoring from SQLite...");
-      const Database = (await import('better-sqlite3')).default;
-      const sqliteDb = new Database(backupPath);
-      
-      const tables = sqliteDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as any[];
-      
-      for (const table of tables) {
-        const tableName = table.name.toLowerCase();
-        if (tableName === 'sqlite_sequence') continue;
-        
-        console.log(`DEBUG: Migrating table ${tableName}...`);
-        const rows = sqliteDb.prepare(`SELECT * FROM ${table.name}`).all() as any[];
-        
-        if (rows.length === 0) continue;
-        
-        // Clear existing data in Postgres
-        await dbModule.pool.query(`TRUNCATE TABLE ${tableName} RESTART IDENTITY CASCADE`);
-        
-        // Get column types from Postgres to identify date/timestamp columns
-        const tableInfo = await dbModule.pool.query(`
-          SELECT column_name, data_type 
-          FROM information_schema.columns 
-          WHERE table_name = $1
-        `, [tableName]);
-        
-        if (tableInfo.rows.length === 0) {
-          console.warn(`DEBUG: Table ${tableName} from SQLite does not exist in PostgreSQL. Skipping.`);
-          continue;
-        }
-        
-        const dateColumns = tableInfo.rows
-          .filter(r => r.data_type.toLowerCase().includes('date') || r.data_type.toLowerCase().includes('timestamp'))
-          .map(r => r.column_name);
-
-        const postgresColumns = tableInfo.rows.map(r => r.column_name);
-        const columns = Object.keys(rows[0]).filter(col => postgresColumns.includes(col));
-        
-        if (columns.length === 0) {
-          console.warn(`DEBUG: No matching columns found for table ${tableName}. Skipping.`);
-          continue;
-        }
-
-        const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
-        const insertSql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`;
-        
-        for (const row of rows) {
-          const values = columns.map(col => {
-            let val = row[col];
-            // Sanitize date/timestamp columns
-            if (dateColumns.includes(col) && val && typeof val === 'string') {
-              const date = new Date(val);
-              if (isNaN(date.getTime())) {
-                console.warn(`DEBUG: Invalid date value "${val}" in column "${col}" for table "${tableName}". Setting to NULL.`);
-                return null;
-              }
-            }
-            return val;
-          });
-          try {
-            await dbModule.pool.query(insertSql, values);
-          } catch (insertError: any) {
-            console.error(`DEBUG: Error inserting into ${tableName}:`, insertError.message);
-            console.error(`DEBUG: Row data:`, JSON.stringify(row));
-            throw insertError;
-          }
-        }
-      }
-      sqliteDb.close();
-    } else {
-      // Use pg_restore for PostgreSQL
-      const databaseUrl = process.env.DATABASE_URL || 'postgres://your_username:your_password@localhost:5432/internal-system';
-      const pgRestoreCmd = `pg_restore -d "${databaseUrl}" -1 -c "${backupPath}"`;
-      await execAsync(pgRestoreCmd);
-    }
+    await restorePostgresBackup(backupPath);
     console.log("DEBUG: Database restored.");
 
     // Reset sequences for all tables to prevent duplicate key errors
@@ -286,6 +206,7 @@ router.post("/restore", authenticate, requireAdmin, async (req: any, res) => {
     logAction('restore', 'backup', null, `Restored database from: ${filename}`, req.user.id, req.user.name, getClientIp(req));
     res.json({ success: true, message: "Database restored successfully." });
   } catch (error: any) {
+    console.error("Restore error:", error);
     res.status(500).json({ error: error.message });
   }
 });

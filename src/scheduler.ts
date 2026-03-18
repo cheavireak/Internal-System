@@ -1,11 +1,9 @@
 import cron from 'node-cron';
-import { exec } from "child_process";
-import util from "util";
-const execAsync = util.promisify(exec);
 import { pool, db } from './db.js';
 import { logAction } from './utils/audit.js';
 import fs from 'fs';
 import path from 'path';
+import { createPostgresBackup } from './utils/backupUtils.js';
 
 export function startScheduler() {
   console.log('Scheduler started...');
@@ -52,9 +50,8 @@ export function startScheduler() {
 
       const backupPath = path.join(BACKUP_DIR, filename);
       
-      const { user, host, database, password, port } = pool.options;
-      const pgDumpCmd = `PGPASSWORD="${password}" pg_dump -U ${user} -h ${host} -p ${port} -d ${database} -F c -f "${backupPath}"`;
-      await execAsync(pgDumpCmd);
+      await createPostgresBackup(backupPath);
+      
       console.log(`Auto backup ${actionType === 'create' ? 'created' : 'updated'}: ${backupPath}`);
       logAction(actionType, 'system', 'backup', `Auto-${actionType} backup: ${filename}`, 0, 'System');
     } catch (error) {
