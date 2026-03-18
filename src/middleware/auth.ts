@@ -13,17 +13,28 @@ export const authenticate = (req: any, res: any, next: any) => {
     if (!user) return res.status(401).json({ error: "User not found" });
     
     let permissions: any = {};
+    const defaultPermissions = {
+      menus: ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'Reports', 'InternalReports', 'SMS', user.role === 'admin' ? 'AdminPanel' : '', user.role === 'admin' ? 'AuditLogs' : ''],
+      can_create: user.role === 'manager' || user.role === 'admin',
+      can_edit: user.role === 'manager' || user.role === 'admin',
+      can_delete: user.role === 'admin',
+      can_move: user.role === 'manager' || user.role === 'admin',
+      can_import: user.role === 'admin',
+      can_export: user.role === 'admin',
+      can_delete_audit_logs: user.role === 'admin'
+    };
+
     try {
-      permissions = user.permissions ? JSON.parse(user.permissions) : {
-        menus: ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'Reports', 'InternalReports', 'SMS', user.role === 'admin' ? 'AdminPanel' : '', user.role === 'admin' ? 'AuditLogs' : ''],
-        can_create: user.role === 'manager' || user.role === 'admin',
-        can_edit: user.role === 'manager' || user.role === 'admin',
-        can_delete: user.role === 'admin',
-        can_move: user.role === 'manager' || user.role === 'admin',
-        can_import: user.role === 'admin',
-        can_export: user.role === 'admin',
-        can_delete_audit_logs: user.role === 'admin'
-      };
+      if (user.permissions) {
+        const parsed = JSON.parse(user.permissions);
+        if (Array.isArray(parsed)) {
+          permissions = { ...defaultPermissions, menus: parsed };
+        } else {
+          permissions = parsed;
+        }
+      } else {
+        permissions = defaultPermissions;
+      }
       
       // Enforce admin permissions
       if (user.role === 'admin' || user.is_superadmin) {
@@ -38,16 +49,7 @@ export const authenticate = (req: any, res: any, next: any) => {
     } catch (e) {
       console.error("Failed to parse user permissions:", e);
       // Fallback to default permissions
-      permissions = {
-        menus: ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'Reports', 'InternalReports', 'SMS', user.role === 'admin' ? 'AdminPanel' : '', user.role === 'admin' ? 'AuditLogs' : ''],
-        can_create: user.role === 'manager' || user.role === 'admin',
-        can_edit: user.role === 'manager' || user.role === 'admin',
-        can_delete: user.role === 'admin',
-        can_move: user.role === 'manager' || user.role === 'admin',
-        can_import: user.role === 'admin',
-        can_export: user.role === 'admin',
-        can_delete_audit_logs: user.role === 'admin'
-      };
+      permissions = defaultPermissions;
     }
 
     req.user = {
