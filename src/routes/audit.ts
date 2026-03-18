@@ -10,7 +10,21 @@ router.get("/", authenticate, async (req: any, res) => {
   if (!req.user.is_superadmin && !req.user.permissions?.menus?.includes('AuditLogs')) {
     return res.status(401).json({ error: "Access denied" });
   }
-  const logs = await db.prepare("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 1000").all();
+  const logs = await db.prepare(`
+    SELECT 
+      id, 
+      action, 
+      entity, 
+      entityId as "entityId", 
+      details, 
+      userId as "userId", 
+      userName as "userName", 
+      timestamp, 
+      ip_address
+    FROM audit_logs 
+    ORDER BY timestamp DESC 
+    LIMIT 1000
+  `).all();
   res.json(logs);
 });
 

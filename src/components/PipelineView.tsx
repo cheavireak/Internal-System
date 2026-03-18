@@ -89,6 +89,17 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
     }
   };
 
+  const formatForInput = (dateStr: any) => {
+    if (!dateStr) return "";
+    try {
+      const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
+      if (!isValid(date)) return "";
+      return format(date, "yyyy-MM-dd");
+    } catch (e) {
+      return "";
+    }
+  };
+
   const fetchColumns = () => {
     fetch(`/api/columns/${stage}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
@@ -836,7 +847,13 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
                           ) : col.type === 'textarea' ? (
                             <textarea placeholder={col.label} className="border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-md p-2 w-full text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value={editForm[col.key] || ''} onChange={e => setEditForm({...editForm, [col.key]: e.target.value})} />
                           ) : (
-                            <input type={col.type} placeholder={col.label} className="border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-md p-2 w-full text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value={editForm[col.key] || ''} onChange={e => setEditForm({...editForm, [col.key]: e.target.value})} />
+                            <input 
+                              type={col.type} 
+                              placeholder={col.label} 
+                              className="border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-md p-2 w-full text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
+                              value={col.type === 'date' ? formatForInput(editForm[col.key]) : (editForm[col.key] || '')} 
+                              onChange={e => setEditForm({...editForm, [col.key]: e.target.value})} 
+                            />
                           )}
                         </td>
                       ))}
@@ -916,7 +933,13 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
                               ) : col.type === 'textarea' || isWrapCol || isOtherCol ? (
                                 <textarea placeholder={col.label} className="border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-md p-2 w-full text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[80px] min-w-[200px]" value={editForm[col.key] || ''} onChange={e => setEditForm({...editForm, [col.key]: e.target.value})} />
                               ) : (
-                                <input type={col.type} placeholder={col.label} className="border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-md p-2 w-full text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" value={editForm[col.key] || ''} onChange={e => setEditForm({...editForm, [col.key]: e.target.value})} />
+                                <input 
+                                  type={col.type} 
+                                  placeholder={col.label} 
+                                  className="border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-md p-2 w-full text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
+                                  value={col.type === 'date' ? formatForInput(editForm[col.key]) : (editForm[col.key] || '')} 
+                                  onChange={e => setEditForm({...editForm, [col.key]: e.target.value})} 
+                                />
                               )
                             )}
                           </td>
@@ -1286,7 +1309,7 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
                             type={col.type}
                             className="w-full p-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
                             style={{ fontSize: 'inherit' }}
-                            value={editForm[col.key] || ''}
+                            value={col.type === 'date' ? formatForInput(editForm[col.key]) : (editForm[col.key] || '')}
                             onChange={(e) => setEditForm({ ...editForm, [col.key]: e.target.value })}
                           />
                         )
