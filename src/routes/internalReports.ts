@@ -214,11 +214,20 @@ router.get("/export", authenticate, async (req: any, res) => {
   
   const records = await db.prepare(query).all(...params) as any[];
   
-  const worksheet = xlsx.utils.json_to_sheet(records.map(r => ({
-    Date: r.date,
-    'Action/Tasks': r.action_tasks,
-    Result: r.result
-  })));
+  const worksheet = xlsx.utils.json_to_sheet(records.map(r => {
+    let date = r.date;
+    if (date && typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+      try {
+        const d = new Date(date);
+        if (!isNaN(d.getTime())) date = d.toISOString().split('T')[0];
+      } catch (e) {}
+    }
+    return {
+      Date: date,
+      'Action/Tasks': r.action_tasks,
+      Result: r.result
+    };
+  }));
   
   const workbook = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(workbook, worksheet, "Internal Reports");

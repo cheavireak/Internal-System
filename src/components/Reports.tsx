@@ -81,22 +81,40 @@ export default function Reports() {
   const exportExcel = () => {
     const wb = xlsx.utils.book_new();
     
-    const wsSupport = xlsx.utils.json_to_sheet(customers.map(c => ({
-      Date: c.create_date,
-      Company: c.customer_name,
-      Type: c.type,
-      Content: c.content,
-      Feedback: c.feedback_from_customer,
-      Status: c.status,
-      Owner: c.sale_owner
-    })));
+    const wsSupport = xlsx.utils.json_to_sheet(customers.map(c => {
+      let date = c.create_date;
+      if (date && typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+        try {
+          const d = new Date(date);
+          if (!isNaN(d.getTime())) date = d.toISOString().split('T')[0];
+        } catch (e) {}
+      }
+      return {
+        Date: date,
+        Company: c.customer_name,
+        Type: c.type,
+        Content: c.content,
+        Feedback: c.feedback_from_customer,
+        Status: c.status,
+        Owner: c.sale_owner
+      };
+    }));
     xlsx.utils.book_append_sheet(wb, wsSupport, 'Customer Support Records');
 
-    const wsTasks = xlsx.utils.json_to_sheet(tasks.map(t => ({
-      'Task Assign': t.task_assign,
-      Time: t.time,
-      Result: t.result
-    })));
+    const wsTasks = xlsx.utils.json_to_sheet(tasks.map(t => {
+      let time = t.time;
+      if (time && typeof time === 'string' && time.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+        try {
+          const d = new Date(time);
+          if (!isNaN(d.getTime())) time = d.toISOString().split('T')[0];
+        } catch (e) {}
+      }
+      return {
+        'Task Assign': t.task_assign,
+        Time: time,
+        Result: t.result
+      };
+    }));
     xlsx.utils.book_append_sheet(wb, wsTasks, 'Task Assign Records');
 
     xlsx.writeFile(wb, 'Reports.xlsx');

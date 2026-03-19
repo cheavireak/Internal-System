@@ -230,7 +230,20 @@ const createStageSheet = (stageId: string, data: any[], tabColor: string) => {
   const rows = data.map(item => {
     const row: any[] = [];
     columns.forEach(col => {
-      row.push(item[col.key] || '');
+      let val = item[col.key] || '';
+      
+      // Format date fields
+      if (val && typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+        try {
+          const d = new Date(val);
+          if (!isNaN(d.getTime())) {
+            // Format as YYYY-MM-DD
+            val = d.toISOString().split('T')[0];
+          }
+        } catch (e) {}
+      }
+      
+      row.push(val);
     });
     return row;
   });

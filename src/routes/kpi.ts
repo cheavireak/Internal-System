@@ -228,18 +228,27 @@ router.get("/export", authenticate, async (req: any, res) => {
   
   const records = await db.prepare(query).all(...params) as any[];
   
-  const worksheet = xlsx.utils.json_to_sheet(records.map(r => ({
-    create_date: r.create_date,
-    company: r.company,
-    contact_name: r.contact_name,
-    contact_by: r.contact_by,
-    problem: r.problem,
-    problem_type: r.problem_type,
-    solution: r.solution,
-    resolved_same_day: r.resolved_same_day,
-    response_time: r.response_time,
-    resolve_time: r.resolve_time
-  })));
+  const worksheet = xlsx.utils.json_to_sheet(records.map(r => {
+    let create_date = r.create_date;
+    if (create_date && typeof create_date === 'string' && create_date.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+      try {
+        const d = new Date(create_date);
+        if (!isNaN(d.getTime())) create_date = d.toISOString().split('T')[0];
+      } catch (e) {}
+    }
+    return {
+      create_date,
+      company: r.company,
+      contact_name: r.contact_name,
+      contact_by: r.contact_by,
+      problem: r.problem,
+      problem_type: r.problem_type,
+      solution: r.solution,
+      resolved_same_day: r.resolved_same_day,
+      response_time: r.response_time,
+      resolve_time: r.resolve_time
+    };
+  }));
   
   const workbook = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(workbook, worksheet, "KPI Records");

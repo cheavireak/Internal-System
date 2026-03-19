@@ -252,9 +252,24 @@ router.get("/summary", authenticate, async (req: any, res) => {
 });
 
 router.get("/export", authenticate, async (req: any, res) => {
-  const customers = await db.prepare("SELECT * FROM customers WHERE deleted_at IS NULL ORDER BY create_date DESC").all();
+  const customers = await db.prepare("SELECT * FROM customers WHERE deleted_at IS NULL ORDER BY create_date DESC").all() as any[];
   
-  const ws = xlsx.utils.json_to_sheet(customers);
+  const formattedCustomers = customers.map(c => {
+    const formatted: any = { ...c };
+    for (const key in formatted) {
+      if (formatted[key] && typeof formatted[key] === 'string' && formatted[key].match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+        try {
+          const d = new Date(formatted[key]);
+          if (!isNaN(d.getTime())) {
+            formatted[key] = d.toISOString().split('T')[0];
+          }
+        } catch (e) {}
+      }
+    }
+    return formatted;
+  });
+
+  const ws = xlsx.utils.json_to_sheet(formattedCustomers);
   const wb = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(wb, ws, "Customers");
   
