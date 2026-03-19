@@ -660,13 +660,15 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{title}</h1>
         <div className="flex gap-4">
-          <button
-            onClick={() => setShowTrashModal(true)}
-            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors text-sm font-medium flex items-center shadow-sm"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Trash
-          </button>
+          {(user?.permissions?.can_restore_records || user?.permissions?.can_empty_trash) && (
+            <button
+              onClick={() => setShowTrashModal(true)}
+              className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors text-sm font-medium flex items-center shadow-sm"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Trash
+            </button>
+          )}
           {canExport && (
             <button
               onClick={handleCopyData}
@@ -1234,6 +1236,7 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
         isOpen={showTrashModal} 
         onClose={() => setShowTrashModal(false)} 
         onRestore={fetchCustomers} 
+        user={user}
       />
 
       {viewingCustomer && (() => {

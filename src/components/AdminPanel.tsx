@@ -147,7 +147,18 @@ export default function AdminPanel({ currentUser }: { currentUser?: any }) {
       can_import: user.role === 'admin',
       can_export: user.role === 'admin',
       can_manage_columns: user.role === 'admin',
-      can_delete_audit_logs: user.role === 'admin'
+      can_delete_audit_logs: user.role === 'admin',
+      can_view_dashboard: true,
+      can_view_sms_logs: true,
+      can_view_reports: true,
+      can_view_internal_reports: true,
+      can_view_kpi: true,
+      can_view_audit_logs: user.role === 'admin',
+      can_manage_users: user.role === 'admin',
+      can_manage_settings: user.role === 'admin',
+      can_restore_records: user.role === 'admin',
+      can_empty_trash: user.role === 'admin',
+      can_send_sms: user.role === 'admin' || user.role === 'manager'
     };
     
     let currentPerms = user.permissions || defaultPerms;
@@ -174,6 +185,17 @@ export default function AdminPanel({ currentUser }: { currentUser?: any }) {
       if (!finalPermissions.menus.includes('InternalReports')) finalPermissions.menus.push('InternalReports');
       if (!finalPermissions.menus.includes('SMS')) finalPermissions.menus.push('SMS');
       finalPermissions.can_delete_audit_logs = true;
+      finalPermissions.can_view_dashboard = true;
+      finalPermissions.can_view_sms_logs = true;
+      finalPermissions.can_view_reports = true;
+      finalPermissions.can_view_internal_reports = true;
+      finalPermissions.can_view_kpi = true;
+      finalPermissions.can_view_audit_logs = true;
+      finalPermissions.can_manage_users = true;
+      finalPermissions.can_manage_settings = true;
+      finalPermissions.can_restore_records = true;
+      finalPermissions.can_empty_trash = true;
+      finalPermissions.can_send_sms = true;
     }
     
     try {
@@ -409,7 +431,18 @@ export default function AdminPanel({ currentUser }: { currentUser?: any }) {
                     { id: 'can_import', label: 'Import Excel' },
                     { id: 'can_export', label: 'Export Excel' },
                     { id: 'can_manage_columns', label: 'Manage Columns' },
-                    { id: 'can_delete_audit_logs', label: 'Delete Audit Logs' }
+                    { id: 'can_delete_audit_logs', label: 'Delete Audit Logs' },
+                    { id: 'can_view_dashboard', label: 'View Dashboard' },
+                    { id: 'can_view_sms_logs', label: 'View SMS Logs' },
+                    { id: 'can_view_reports', label: 'View Reports' },
+                    { id: 'can_view_internal_reports', label: 'View Internal Reports' },
+                    { id: 'can_view_kpi', label: 'View KPI' },
+                    { id: 'can_view_audit_logs', label: 'View Audit Logs' },
+                    { id: 'can_manage_users', label: 'Manage Users' },
+                    { id: 'can_manage_settings', label: 'Manage Settings' },
+                    { id: 'can_restore_records', label: 'Restore Records' },
+                    { id: 'can_empty_trash', label: 'Empty Trash' },
+                    { id: 'can_send_sms', label: 'Send SMS' }
                   ].map(action => {
                     if (action.id === 'can_delete_audit_logs' && editingUser.role !== 'admin') return null;
                     return (
@@ -484,13 +517,15 @@ export default function AdminPanel({ currentUser }: { currentUser?: any }) {
                 <Shield className="w-5 h-5 mr-2 text-indigo-600" />
                 User Management
               </h2>
-              <button 
-                onClick={() => setShowTrashModal(true)}
-                className="flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Recycle Bin
-              </button>
+              {(currentUser?.permissions?.can_restore_records || currentUser?.permissions?.can_empty_trash) && (
+                <button 
+                  onClick={() => setShowTrashModal(true)}
+                  className="flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Recycle Bin
+                </button>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -554,6 +589,7 @@ export default function AdminPanel({ currentUser }: { currentUser?: any }) {
         isOpen={showTrashModal} 
         onClose={() => setShowTrashModal(false)} 
         onRestore={fetchUsers} 
+        user={currentUser}
       />
     </div>
   );

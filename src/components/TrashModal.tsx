@@ -7,9 +7,10 @@ interface TrashModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRestore: () => void; // Callback to refresh parent list
+  user?: any;
 }
 
-export default function TrashModal({ type, isOpen, onClose, onRestore }: TrashModalProps) {
+export default function TrashModal({ type, isOpen, onClose, onRestore, user }: TrashModalProps) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [restoringId, setRestoringId] = useState<number | null>(null);
@@ -123,7 +124,7 @@ export default function TrashModal({ type, isOpen, onClose, onRestore }: TrashMo
             </h2>
           </div>
           <div className="flex items-center gap-3">
-            {items.length > 0 && (
+            {items.length > 0 && (user?.permissions?.can_empty_trash) && (
               <button 
                 onClick={() => setClearConfirm(true)}
                 className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium"
@@ -163,25 +164,29 @@ export default function TrashModal({ type, isOpen, onClose, onRestore }: TrashMo
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleRestore(item.id)}
-                      disabled={restoringId === item.id}
-                      className="flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-                    >
-                      {restoringId === item.id ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-                      ) : (
-                        <RefreshCw className="w-4 h-4 mr-2 text-green-600" />
-                      )}
-                      Restore
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="flex items-center px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-sm font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </button>
+                    {user?.permissions?.can_restore_records && (
+                      <button
+                        onClick={() => handleRestore(item.id)}
+                        disabled={restoringId === item.id}
+                        className="flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                      >
+                        {restoringId === item.id ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                        ) : (
+                          <RefreshCw className="w-4 h-4 mr-2 text-green-600" />
+                        )}
+                        Restore
+                      </button>
+                    )}
+                    {user?.permissions?.can_empty_trash && (
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="flex items-center px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-sm font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

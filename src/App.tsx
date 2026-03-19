@@ -161,23 +161,23 @@ export default function App() {
           )}
           <div className={!isSidebarOpen ? "mt-12" : ""}>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/kpi" element={<KPITracker />} />
-              <Route path="/kpi/create" element={<CreateEditKPI />} />
-              <Route path="/kpi/edit/:id" element={<CreateEditKPI />} />
+              {user?.permissions?.can_view_dashboard && <Route path="/" element={<Dashboard />} />}
+              {user?.permissions?.can_view_kpi && <Route path="/kpi" element={<KPITracker />} />}
+              {user?.permissions?.can_view_kpi && <Route path="/kpi/create" element={<CreateEditKPI />} />}
+              {user?.permissions?.can_view_kpi && <Route path="/kpi/edit/:id" element={<CreateEditKPI />} />}
               {user?.permissions?.menus?.includes('NewIntegration') && <Route path="/new-integration" element={<PipelineView stage="NewIntegration" title="New Integration" user={user} />} />}
               {user?.permissions?.menus?.includes('SandboxToProduction') && <Route path="/sandbox-to-production" element={<PipelineView stage="SandboxToProduction" title="Sandbox To Production" user={user} />} />}
               {user?.permissions?.menus?.includes('Delay') && <Route path="/delay-project" element={<PipelineView stage="Delay" title="Delay Project" user={user} />} />}
               {user?.permissions?.menus?.includes('Lost') && <Route path="/lost-leads" element={<PipelineView stage="Lost" title="Lost API Leads" user={user} />} />}
               {user?.permissions?.menus?.includes('Expired') && <Route path="/expired" element={<PipelineView stage="Expired" title="Expired" user={user} />} />}
               {user?.permissions?.menus?.includes('SMPP') && <Route path="/smpp" element={<PipelineView stage="SMPP" title="SMPP" user={user} />} />}
-              <Route path="/internal-reports" element={<InternalReports />} />
-              <Route path="/internal-reports/create" element={<CreateEditInternalReport />} />
-              <Route path="/internal-reports/edit/:id" element={<CreateEditInternalReport />} />
-              {user?.permissions?.menus?.includes('SMS') && <Route path="/sms" element={<SMS />} />}
-              {(user?.is_superadmin || (user?.permissions?.menus?.includes('AdminPanel') && user?.role !== 'user')) && <Route path="/admin" element={<AdminPanel currentUser={user} />} />}
-              {(user?.is_superadmin || (user?.permissions?.menus?.includes('AuditLogs') && user?.role !== 'user')) && <Route path="/audit-logs" element={<AuditLogs user={user} />} />}
-              {(user?.is_superadmin || user?.role === 'admin') && <Route path="/settings" element={<Settings currentUser={user} refreshHiddenMenus={refreshHiddenMenus} hiddenMenus={hiddenMenus} sessionTimeout={sessionTimeout} setSessionTimeout={setSessionTimeout} />} />}
+              {user?.permissions?.can_view_internal_reports && <Route path="/internal-reports" element={<InternalReports />} />}
+              {user?.permissions?.can_view_internal_reports && <Route path="/internal-reports/create" element={<CreateEditInternalReport />} />}
+              {user?.permissions?.can_view_internal_reports && <Route path="/internal-reports/edit/:id" element={<CreateEditInternalReport />} />}
+              {user?.permissions?.can_view_sms_logs && <Route path="/sms" element={<SMS user={user} />} />}
+              {user?.permissions?.can_manage_users && <Route path="/admin" element={<AdminPanel currentUser={user} />} />}
+              {user?.permissions?.can_view_audit_logs && <Route path="/audit-logs" element={<AuditLogs user={user} />} />}
+              {user?.permissions?.can_manage_settings && <Route path="/settings" element={<Settings currentUser={user} refreshHiddenMenus={refreshHiddenMenus} hiddenMenus={hiddenMenus} sessionTimeout={sessionTimeout} setSessionTimeout={setSessionTimeout} />} />}
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </div>
@@ -207,17 +207,16 @@ function Sidebar({ user, setToken, isOpen, setIsOpen, isDarkMode, setIsDarkMode,
   ];
 
   const visibleLinks = links.filter(link => {
-    console.log(`Checking link: ${link.id}, hidden: ${hiddenMenus.includes(link.id)}, permission: ${user?.permissions?.menus?.includes(link.id)}`);
     // Check if the menu is hidden globally
     if (hiddenMenus.includes(link.id)) {
       return false;
     }
     
     // Check if the user has permission for this menu
-    // Dashboard, Reports, and Internal Reports are always visible unless hidden
-    if (link.id === 'Dashboard' || link.id === 'Reports' || link.id === 'InternalReports') {
-      return true;
-    }
+    if (link.id === 'Dashboard') return user?.permissions?.can_view_dashboard;
+    if (link.id === 'Reports') return user?.permissions?.can_view_kpi;
+    if (link.id === 'InternalReports') return user?.permissions?.can_view_internal_reports;
+    if (link.id === 'SMS') return user?.permissions?.can_view_sms_logs;
     
     return user?.permissions?.menus?.includes(link.id);
   });

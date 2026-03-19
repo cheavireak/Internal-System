@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Save, Send, History, Settings, MessageSquare, Search, ChevronLeft, ChevronRight, Copy, Trash2, AlertTriangle, Eye, EyeOff, ChevronUp, ChevronDown, Download } from "lucide-react";
 
-export default function SMS() {
-  const [activeTab, setActiveTab] = useState<'send' | 'logs' | 'config'>('send');
+export default function SMS({ user }: { user?: any }) {
+  const [activeTab, setActiveTab] = useState<'send' | 'logs' | 'config'>(user?.permissions?.can_send_sms ? 'send' : 'logs');
   
   // Config state
   const [config, setConfig] = useState({ url: "", username: "", pass: "", int: "0" });
@@ -245,33 +245,39 @@ export default function SMS() {
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="flex border-b border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => setActiveTab('send')}
-            className={`flex-1 py-4 px-6 text-center font-medium text-sm flex items-center justify-center transition-colors ${
-              activeTab === 'send' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-b-2 border-indigo-700 dark:border-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-            }`}
-          >
-            <Send className="w-4 h-4 mr-2" />
-            Send SMS
-          </button>
-          <button
-            onClick={() => setActiveTab('logs')}
-            className={`flex-1 py-4 px-6 text-center font-medium text-sm flex items-center justify-center transition-colors ${
-              activeTab === 'logs' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-b-2 border-indigo-700 dark:border-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-            }`}
-          >
-            <History className="w-4 h-4 mr-2" />
-            SMS Logs
-          </button>
-          <button
-            onClick={() => setActiveTab('config')}
-            className={`flex-1 py-4 px-6 text-center font-medium text-sm flex items-center justify-center transition-colors ${
-              activeTab === 'config' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-b-2 border-indigo-700 dark:border-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-            }`}
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Configuration
-          </button>
+          {user?.permissions?.can_send_sms && (
+            <button
+              onClick={() => setActiveTab('send')}
+              className={`flex-1 py-4 px-6 text-center font-medium text-sm flex items-center justify-center transition-colors ${
+                activeTab === 'send' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-b-2 border-indigo-700 dark:border-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              }`}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Send SMS
+            </button>
+          )}
+          {user?.permissions?.can_view_sms_logs && (
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`flex-1 py-4 px-6 text-center font-medium text-sm flex items-center justify-center transition-colors ${
+                activeTab === 'logs' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-b-2 border-indigo-700 dark:border-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              }`}
+            >
+              <History className="w-4 h-4 mr-2" />
+              SMS Logs
+            </button>
+          )}
+          {user?.permissions?.can_manage_settings && (
+            <button
+              onClick={() => setActiveTab('config')}
+              className={`flex-1 py-4 px-6 text-center font-medium text-sm flex items-center justify-center transition-colors ${
+                activeTab === 'config' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-b-2 border-indigo-700 dark:border-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              }`}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Configuration
+            </button>
+          )}
         </div>
 
         <div className="p-6">

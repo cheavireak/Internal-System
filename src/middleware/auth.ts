@@ -21,7 +21,18 @@ export const authenticate = async (req: any, res: any, next: any) => {
       can_move: user.role === 'manager' || user.role === 'admin',
       can_import: user.role === 'admin',
       can_export: user.role === 'admin',
-      can_delete_audit_logs: user.role === 'admin'
+      can_delete_audit_logs: user.role === 'admin',
+      can_view_dashboard: true,
+      can_view_sms_logs: user.role === 'admin' || user.role === 'manager',
+      can_view_reports: true,
+      can_view_internal_reports: true,
+      can_view_kpi: true,
+      can_view_audit_logs: user.role === 'admin',
+      can_manage_users: user.role === 'admin',
+      can_manage_settings: user.role === 'admin',
+      can_restore_records: user.role === 'admin',
+      can_empty_trash: user.role === 'admin',
+      can_send_sms: user.role === 'admin' || user.role === 'manager'
     };
 
     try {
@@ -52,6 +63,17 @@ export const authenticate = async (req: any, res: any, next: any) => {
         permissions.can_export = true;
         permissions.can_manage_columns = true;
         permissions.can_delete_audit_logs = true;
+        permissions.can_view_dashboard = true;
+        permissions.can_view_sms_logs = true;
+        permissions.can_view_reports = true;
+        permissions.can_view_internal_reports = true;
+        permissions.can_view_kpi = true;
+        permissions.can_view_audit_logs = true;
+        permissions.can_manage_users = true;
+        permissions.can_manage_settings = true;
+        permissions.can_restore_records = true;
+        permissions.can_empty_trash = true;
+        permissions.can_send_sms = true;
       } else if (user.role === 'admin') {
         if (!permissions.menus) permissions.menus = [];
         if (!permissions.menus.includes('AdminPanel')) permissions.menus.push('AdminPanel');
