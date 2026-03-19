@@ -82,18 +82,27 @@ export const generateWeeklyReport = async () => {
 };
 
 const createSummarySheet = (allData: Record<string, any[]>) => {
-  // Calculate counts
-  const currentCounts = {
-    NewIntegration: allData['NewIntegration']?.length || 0,
-    Delay: allData['Delay']?.length || 0,
-    Lost: allData['Lost']?.length || 0,
-    SandboxToProduction: allData['SandboxToProduction']?.length || 0
-  };
-
   // Mock previous dates for structure
   const today = new Date();
   const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
   const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+  const getCountUpToDate = (data: any[], maxDate: Date, stage: string) => {
+    if (!data) return 0;
+    return data.filter(item => {
+      let dateToUse = item.create_date;
+      if (stage === 'SandboxToProduction') {
+        dateToUse = item.date_to_production || item.completed_date || item.last_update || item.create_date;
+      } else if (stage === 'Lost') {
+        dateToUse = item.completed_date || item.last_update || item.create_date;
+      } else {
+        dateToUse = item.create_date;
+      }
+      if (!dateToUse) return true; // If no date, assume it counts
+      const d = new Date(dateToUse).getTime();
+      return isNaN(d) || d <= maxDate.getTime();
+    }).length;
+  };
 
   const formatDate = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
 
@@ -103,10 +112,11 @@ const createSummarySheet = (allData: Record<string, any[]>) => {
   ];
 
   const dataRows = SUMMARY_ROWS.map(row => {
+    const stageData = allData[row.stage] || [];
     return [
-      row.title, '', // Previous 2 weeks (empty)
-      row.title, '', // Previous 1 week (empty)
-      row.title, currentCounts[row.stage as keyof typeof currentCounts] // Current
+      row.title, getCountUpToDate(stageData, twoWeeksAgo, row.stage), // Previous 2 weeks
+      row.title, getCountUpToDate(stageData, oneWeekAgo, row.stage), // Previous 1 week
+      row.title, stageData.length // Current
     ];
   });
 
