@@ -14,7 +14,7 @@ export const authenticate = async (req: any, res: any, next: any) => {
     
     let permissions: any = {};
     const defaultPermissions = {
-      menus: ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'Reports', 'InternalReports', 'SMS', user.role === 'admin' ? 'AdminPanel' : '', user.role === 'admin' ? 'AuditLogs' : ''],
+      menus: ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'Reports', 'InternalReports', 'SMS', ...(user.role === 'admin' ? ['AdminPanel', 'AuditLogs'] : [])],
       can_create: user.role === 'manager' || user.role === 'admin',
       can_edit: user.role === 'manager' || user.role === 'admin',
       can_delete: user.role === 'admin',
@@ -46,13 +46,13 @@ export const authenticate = async (req: any, res: any, next: any) => {
             permissions = { ...defaultPermissions, menus: parsed };
           }
         } else {
-          permissions = parsed;
+          permissions = { ...defaultPermissions, ...parsed };
         }
       } else {
         permissions = defaultPermissions;
       }
       
-      // Enforce admin/superadmin permissions
+      // Enforce superadmin permissions
       if (user.is_superadmin) {
         permissions.menus = ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'Reports', 'InternalReports', 'SMS', 'AdminPanel', 'AuditLogs'];
         permissions.can_create = true;
@@ -74,14 +74,6 @@ export const authenticate = async (req: any, res: any, next: any) => {
         permissions.can_restore_records = true;
         permissions.can_empty_trash = true;
         permissions.can_send_sms = true;
-      } else if (user.role === 'admin') {
-        if (!permissions.menus) permissions.menus = [];
-        if (!permissions.menus.includes('AdminPanel')) permissions.menus.push('AdminPanel');
-        if (!permissions.menus.includes('AuditLogs')) permissions.menus.push('AuditLogs');
-        if (!permissions.menus.includes('Reports')) permissions.menus.push('Reports');
-        if (!permissions.menus.includes('InternalReports')) permissions.menus.push('InternalReports');
-        if (!permissions.menus.includes('SMS')) permissions.menus.push('SMS');
-        permissions.can_delete_audit_logs = true;
       }
     } catch (e) {
       console.error("Failed to parse user permissions:", e);

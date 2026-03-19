@@ -139,7 +139,7 @@ export default function AdminPanel({ currentUser }: { currentUser?: any }) {
       return;
     }
     const defaultPerms = {
-      menus: ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'Reports', 'InternalReports', 'SMS'],
+      menus: ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'Reports', 'InternalReports', 'SMS', ...(user.role === 'admin' ? ['AdminPanel', 'AuditLogs'] : [])],
       can_create: user.role === 'manager' || user.role === 'admin',
       can_edit: user.role === 'manager' || user.role === 'admin',
       can_delete: user.role === 'admin',
@@ -161,10 +161,15 @@ export default function AdminPanel({ currentUser }: { currentUser?: any }) {
       can_send_sms: user.role === 'admin' || user.role === 'manager'
     };
     
-    let currentPerms = user.permissions || defaultPerms;
-    if (user.role === 'admin') {
-      if (!currentPerms.menus.includes('AdminPanel')) currentPerms.menus.push('AdminPanel');
-      if (!currentPerms.menus.includes('AuditLogs')) currentPerms.menus.push('AuditLogs');
+    let currentPerms;
+    if (user.permissions) {
+      if (Array.isArray(user.permissions)) {
+        currentPerms = { ...defaultPerms, menus: user.permissions };
+      } else {
+        currentPerms = { ...defaultPerms, ...user.permissions };
+      }
+    } else {
+      currentPerms = defaultPerms;
     }
 
     setEditingUser({
@@ -177,26 +182,6 @@ export default function AdminPanel({ currentUser }: { currentUser?: any }) {
     if (!editingUser) return;
     
     let finalPermissions = { ...editingUser.permissions };
-    if (editingUser.role === 'admin') {
-      if (!finalPermissions.menus) finalPermissions.menus = [];
-      if (!finalPermissions.menus.includes('AdminPanel')) finalPermissions.menus.push('AdminPanel');
-      if (!finalPermissions.menus.includes('AuditLogs')) finalPermissions.menus.push('AuditLogs');
-      if (!finalPermissions.menus.includes('Reports')) finalPermissions.menus.push('Reports');
-      if (!finalPermissions.menus.includes('InternalReports')) finalPermissions.menus.push('InternalReports');
-      if (!finalPermissions.menus.includes('SMS')) finalPermissions.menus.push('SMS');
-      finalPermissions.can_delete_audit_logs = true;
-      finalPermissions.can_view_dashboard = true;
-      finalPermissions.can_view_sms_logs = true;
-      finalPermissions.can_view_reports = true;
-      finalPermissions.can_view_internal_reports = true;
-      finalPermissions.can_view_kpi = true;
-      finalPermissions.can_view_audit_logs = true;
-      finalPermissions.can_manage_users = true;
-      finalPermissions.can_manage_settings = true;
-      finalPermissions.can_restore_records = true;
-      finalPermissions.can_empty_trash = true;
-      finalPermissions.can_send_sms = true;
-    }
     
     try {
       const res = await fetch(`/api/users/${editingUser.id}`, {
