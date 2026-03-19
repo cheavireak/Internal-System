@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Save, Send, History, Settings, MessageSquare, Search, ChevronLeft, ChevronRight, Copy, Trash2, AlertTriangle, Eye, EyeOff, ChevronUp, ChevronDown } from "lucide-react";
+import { Save, Send, History, Settings, MessageSquare, Search, ChevronLeft, ChevronRight, Copy, Trash2, AlertTriangle, Eye, EyeOff, ChevronUp, ChevronDown, Download } from "lucide-react";
 
 export default function SMS() {
   const [activeTab, setActiveTab] = useState<'send' | 'logs' | 'config'>('send');
@@ -175,6 +175,34 @@ export default function SMS() {
     setGsm(log.phone_number || "");
     setSmstext(log.content || "");
     setActiveTab('send');
+  };
+
+  const handleExportLogs = () => {
+    if (filteredLogs.length === 0) return;
+
+    const headers = ['Time', 'Sender', 'Phone Number', 'Content', 'Parts', 'Route', 'Message ID'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredLogs.map(log => [
+        new Date(log.time).toLocaleString().replace(/,/g, ''),
+        `"${(log.sender || '').replace(/"/g, '""')}"`,
+        `"${(log.phone_number || '').replace(/"/g, '""')}"`,
+        `"${(log.content || '').replace(/"/g, '""')}"`,
+        log.sms_parts || 1,
+        `"${(log.route || 'no gateway').replace(/"/g, '""')}"`,
+        `"${(log.message_id ? log.message_id.toString().replace(/\D/g, '') : '').replace(/"/g, '""')}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `sms_logs_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const filteredLogs = useMemo(() => {
@@ -387,6 +415,14 @@ export default function SMS() {
                       className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 text-sm"
                     />
                   </div>
+                  <button
+                    onClick={handleExportLogs}
+                    disabled={filteredLogs.length === 0}
+                    className="flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </button>
                 </div>
               </div>
               {loadingLogs ? (
