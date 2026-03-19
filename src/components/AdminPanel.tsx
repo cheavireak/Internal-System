@@ -31,8 +31,18 @@ export default function AdminPanel({ currentUser }: { currentUser?: any }) {
     fetch("/api/users", {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
     })
-    .then(res => res.json())
-    .then(data => setUsers(data));
+    .then(res => {
+      if (!res.ok) throw new Error("Failed to fetch users");
+      return res.json();
+    })
+    .then(data => {
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        console.error("Expected array of users, got:", data);
+      }
+    })
+    .catch(err => console.error("Error fetching users:", err));
   };
 
   useEffect(() => {

@@ -9,7 +9,7 @@ export const authenticate = async (req: any, res: any, next: any) => {
   const token = authHeader.split(" ")[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const user = await db.prepare("SELECT id, email, role, name, permissions, is_superadmin FROM users WHERE email = ?").get(decoded.email) as any;
+    const user = await db.prepare("SELECT id, email, role, name, permissions, is_superadmin FROM users WHERE id = ? OR email = ?").get(decoded.id, decoded.email) as any;
     if (!user) return res.status(401).json({ error: "User not found" });
     
     let permissions: any = {};
