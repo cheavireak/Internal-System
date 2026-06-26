@@ -118,6 +118,31 @@ export async function initSchema() {
       } catch (e) {
         console.warn('Could not add route column to sms_logs:', e);
       }
+
+      try {
+        await pool.query(`
+          DO $$
+          BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_superadmin' AND data_type='integer') THEN
+              ALTER TABLE users ALTER COLUMN is_superadmin DROP DEFAULT;
+              ALTER TABLE users ALTER COLUMN is_superadmin TYPE boolean USING (CASE WHEN is_superadmin=1 THEN TRUE ELSE FALSE END);
+              ALTER TABLE users ALTER COLUMN is_superadmin SET DEFAULT FALSE;
+            END IF;
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_disabled' AND data_type='integer') THEN
+              ALTER TABLE users ALTER COLUMN is_disabled DROP DEFAULT;
+              ALTER TABLE users ALTER COLUMN is_disabled TYPE boolean USING (CASE WHEN is_disabled=1 THEN TRUE ELSE FALSE END);
+              ALTER TABLE users ALTER COLUMN is_disabled SET DEFAULT FALSE;
+            END IF;
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='customers' AND column_name='is_imported' AND data_type='integer') THEN
+              ALTER TABLE customers ALTER COLUMN is_imported DROP DEFAULT;
+              ALTER TABLE customers ALTER COLUMN is_imported TYPE boolean USING (CASE WHEN is_imported=1 THEN TRUE ELSE FALSE END);
+              ALTER TABLE customers ALTER COLUMN is_imported SET DEFAULT FALSE;
+            END IF;
+          END $$;
+        `);
+      } catch (e) {
+        console.warn('Could not revert integer to boolean:', e);
+      }
       
       console.log("PostgreSQL schema initialized successfully.");
       
