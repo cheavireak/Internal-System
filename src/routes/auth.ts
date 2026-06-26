@@ -13,10 +13,6 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
-
     // Get Client IP
     const clientIp = getClientIp(req);
     console.log("DEBUG: Login attempt from IP:", clientIp);
@@ -63,9 +59,6 @@ router.post("/login", async (req, res) => {
     }
 
     // 2. Check Password
-    if (!user.password_hash) {
-      return await handleFailedLogin("Invalid Password", user.id, user.name);
-    }
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       return await handleFailedLogin("Invalid Password", user.id, user.name);
@@ -110,9 +103,9 @@ router.post("/login", async (req, res) => {
     logAction('login', 'user', String(user.id), `User logged in: ${user.name}`, user.id, user.name, clientIp);
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: "1d" });
     res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name, is_superadmin: !!user.is_superadmin } });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({ error: "An unexpected error occurred during login.", details: error.message, stack: error.stack });
+    res.status(500).json({ error: "An unexpected error occurred during login." });
   }
 });
 

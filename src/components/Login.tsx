@@ -30,7 +30,7 @@ export default function Login({ setToken }: { setToken: (token: string) => void 
             setIsBlocked(true);
             setError(data.message || "Your IP has been blocked due to too many failed login attempts.");
           } else {
-            setError(data.details ? `${data.error} Details: ${data.details}` : (data.error || "Login failed"));
+            setError(data.error || "Login failed");
           }
         }
       } else {
