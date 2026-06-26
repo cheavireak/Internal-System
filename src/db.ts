@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 dotenv.config();
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://your_username:your_password@localhost:5432/internal-system',
+  connectionString: process.env.DATABASE_URL || 'postgres://postgres:04122@localhost:5432/internal-system',
 });
 
 // Helper to convert SQLite ? to Postgres $1, $2
