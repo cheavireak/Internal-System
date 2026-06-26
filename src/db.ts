@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 dotenv.config();
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://your_username:your_password@localhost:5432/internal-system',
+  connectionString: process.env.DATABASE_URL || 'postgres://postgres:04122@localhost:5432/internal-system',
 });
 
 // Helper to convert SQLite ? to Postgres $1, $2
@@ -119,35 +119,6 @@ export async function initSchema() {
         console.warn('Could not add route column to sms_logs:', e);
       }
       
-      // Convert boolean columns to integer to avoid sqlite import errors
-      try {
-        // Only run if column is boolean
-        const checkType = await pool.query(`SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_superadmin'`);
-        if (checkType.rows[0]?.data_type === 'boolean') {
-          await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin DROP DEFAULT');
-          await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin TYPE integer USING (CASE WHEN is_superadmin THEN 1 ELSE 0 END)');
-          await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin SET DEFAULT 0');
-        }
-      } catch (e) { console.warn('Could not alter is_superadmin', e); }
-      
-      try {
-        const checkType = await pool.query(`SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_disabled'`);
-        if (checkType.rows[0]?.data_type === 'boolean') {
-          await pool.query('ALTER TABLE users ALTER COLUMN is_disabled DROP DEFAULT');
-          await pool.query('ALTER TABLE users ALTER COLUMN is_disabled TYPE integer USING (CASE WHEN is_disabled THEN 1 ELSE 0 END)');
-          await pool.query('ALTER TABLE users ALTER COLUMN is_disabled SET DEFAULT 0');
-        }
-      } catch (e) { console.warn('Could not alter is_disabled', e); }
-      
-      try {
-        const checkType = await pool.query(`SELECT data_type FROM information_schema.columns WHERE table_name = 'customers' AND column_name = 'is_imported'`);
-        if (checkType.rows[0]?.data_type === 'boolean') {
-          await pool.query('ALTER TABLE customers ALTER COLUMN is_imported DROP DEFAULT');
-          await pool.query('ALTER TABLE customers ALTER COLUMN is_imported TYPE integer USING (CASE WHEN is_imported THEN 1 ELSE 0 END)');
-          await pool.query('ALTER TABLE customers ALTER COLUMN is_imported SET DEFAULT 0');
-        }
-      } catch (e) { console.warn('Could not alter is_imported', e); }
-      
       console.log("PostgreSQL schema initialized successfully.");
       
       // Automatically seed a default admin user if none exists in the database
@@ -171,14 +142,14 @@ export async function initSchema() {
         if (userRes.rows.length === 0) {
           await pool.query(
             `INSERT INTO users (email, password_hash, role, name, permissions, is_superadmin, is_disabled) 
-             VALUES ($1, $2, 'admin', 'Super Admin', $3, 1, 0)`,
+             VALUES ($1, $2, 'admin', 'Super Admin', $3, true, false)`,
             [defaultEmail, passwordHash, permissions]
           );
           console.log(`[SEED] Super Admin user '${defaultEmail}' created successfully!`);
         } else {
           await pool.query(
             `UPDATE users 
-             SET password_hash = $1, role = 'admin', permissions = $2, is_superadmin = 1, is_disabled = 0, deleted_at = NULL 
+             SET password_hash = $1, role = 'admin', permissions = $2, is_superadmin = true, is_disabled = false, deleted_at = NULL 
              WHERE email = $3`,
             [passwordHash, permissions, defaultEmail]
           );

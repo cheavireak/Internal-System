@@ -123,13 +123,13 @@ router.put("/:id", authenticate, requireAdmin, async (req: any, res) => {
         can_manage_columns: true,
         can_delete_audit_logs: true
       });
-      await db.prepare("UPDATE users SET email = ?, name = ?, permissions = ?, is_disabled = 0, ip_whitelist = ? WHERE id = ?").run(email, name, defaultPermissions, req.body.ip_whitelist || "", req.params.id);
+      await db.prepare("UPDATE users SET email = ?, name = ?, permissions = ?, is_disabled = FALSE, ip_whitelist = ? WHERE id = ?").run(email, name, defaultPermissions, req.body.ip_whitelist || "", req.params.id);
       logAction('update', 'user', req.params.id, `Updated superadmin user: ${name}`, req.user.id, req.user.name, getClientIp(req));
       return res.json({ success: true });
     }
 
     const permsString = permissions ? JSON.stringify(permissions) : null;
-    const disabledVal = is_disabled ? 1 : 0;
+    const disabledVal = is_disabled ? true : false;
     const ipWhitelistVal = req.body.ip_whitelist || "";
     if (permsString) {
       await db.prepare("UPDATE users SET email = ?, role = ?, name = ?, permissions = ?, is_disabled = ?, ip_whitelist = ? WHERE id = ?").run(email, role, name, permsString, disabledVal, ipWhitelistVal, req.params.id);
@@ -181,7 +181,7 @@ router.put("/:id/toggle-status", authenticate, requireAdmin, async (req: any, re
       return res.status(400).json({ error: "Cannot disable the default admin user" });
     }
 
-    const newStatus = targetUser.is_disabled ? 0 : 1;
+    const newStatus = targetUser.is_disabled ? false : true;
     await db.prepare("UPDATE users SET is_disabled = ? WHERE id = ?").run(newStatus, req.params.id);
     
     logAction('update', 'user', req.params.id, `Toggled user status: ${targetUser.name} (Disabled: ${newStatus})`, req.user.id, req.user.name, getClientIp(req));

@@ -123,7 +123,7 @@ router.get("/summary", authenticate, async (req: any, res) => {
     const createTime = new Date(c.create_date).getTime();
     const updateTime = new Date(c.last_update || c.create_date).getTime();
     
-    const isImported = c.is_imported === 1;
+    const isImported = c.is_imported === true || c.is_imported === 1;
     const stageUpdateTime = c.stage_updated_at ? new Date(c.stage_updated_at).getTime() : updateTime;
     const newIntegrationTime = c.stage_updated_at ? new Date(c.stage_updated_at).getTime() : createTime;
     
@@ -293,7 +293,7 @@ router.post("/import-json", authenticate, async (req: any, res) => {
         last_update, status, completed_date, pro_account, sale_owner,
         sale_updated, other, pipeline_stage, priority, next_follow_up_date, tags,
         status_in_production, date_to_production, date_have_traffic, is_imported, stage_updated_at, custom_data
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, NULL, ?)
     `);
     
     const standardKeys = ['create_date', 'customer_name', 'type', 'content', 'feedback_from_customer', 'last_update', 'status', 'completed_date', 'pro_account', 'sale_owner', 'sale_updated', 'other', 'pipeline_stage', 'priority', 'next_follow_up_date', 'tags', 'status_in_production', 'date_to_production', 'date_have_traffic'];
@@ -359,7 +359,7 @@ router.post("/import", authenticate, upload.single("file"), async (req: any, res
         last_update, status, completed_date, pro_account, sale_owner,
         sale_updated, other, pipeline_stage, priority, next_follow_up_date, tags,
         is_imported, stage_updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, NULL)
     `);
     
     const insertMany = db.transaction(async (rows: any[]) => {
