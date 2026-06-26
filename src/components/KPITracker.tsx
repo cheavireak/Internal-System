@@ -19,6 +19,14 @@ export default function KPITracker() {
   const formatDate = (dateStr: any) => {
     if (!dateStr) return "-";
     try {
+      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+        const datePart = dateStr.split('T')[0];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+          const [year, month, day] = datePart.split('-');
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          return format(date, "dd-MMM-yyyy");
+        }
+      }
       const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
       return isValid(date) ? format(date, "dd-MMM-yyyy") : String(dateStr);
     } catch (e) {

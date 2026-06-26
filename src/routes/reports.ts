@@ -6,6 +6,13 @@ import { getClientIp } from "../utils/ip.js";
 
 const router = express.Router();
 
+const sanitizeDate = (val: any) => {
+  if (typeof val === 'string' && val.includes('T')) {
+    return val.split('T')[0];
+  }
+  return val || null;
+};
+
 // Get support reports
 router.get("/support", authenticate, async (req: any, res) => {
   const reports = await db.prepare("SELECT * FROM support_reports WHERE type = 'support' ORDER BY date DESC").all();
@@ -22,7 +29,7 @@ router.get("/internal", authenticate, async (req: any, res) => {
 router.post("/", authenticate, async (req: any, res) => {
   const { date, task, time, result, type } = req.body;
   const stmt = db.prepare("INSERT INTO support_reports (date, task, time, result, type) VALUES (?, ?, ?, ?, ?)");
-  await stmt.run(date, task, time, result, type);
+  await stmt.run(sanitizeDate(date), task, time, result, type);
   logAction('create', 'report', null, `Created ${type} report`, req.user.id, req.user.name, getClientIp(req));
   res.json({ success: true });
 });
@@ -52,7 +59,7 @@ router.get("/internal_reports", authenticate, async (req: any, res) => {
 router.post("/internal_reports", authenticate, async (req: any, res) => {
   const { date, action_tasks, result } = req.body;
   const stmt = db.prepare("INSERT INTO internal_reports (date, action_tasks, result, created_at) VALUES (?, ?, ?, ?)");
-  await stmt.run(date, action_tasks, result, new Date().toISOString());
+  await stmt.run(sanitizeDate(date), action_tasks, result, new Date().toISOString());
   logAction('create', 'internal_report', null, `Created internal report`, req.user.id, req.user.name, getClientIp(req));
   res.json({ success: true });
 });

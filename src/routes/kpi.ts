@@ -10,6 +10,13 @@ import fs from "fs";
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
+const sanitizeDate = (val: any) => {
+  if (typeof val === 'string' && val.includes('T')) {
+    return val.split('T')[0];
+  }
+  return val || null;
+};
+
 router.get("/", authenticate, async (req: any, res) => {
   const { month, page = 1, search } = req.query;
   const pageSize = 10;
@@ -57,7 +64,7 @@ router.post("/", authenticate, async (req: any, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
-    const result = await stmt.run(create_date, company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day || 'Y');
+    const result = await stmt.run(sanitizeDate(create_date), company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day || 'Y');
     res.json({ id: result.lastInsertRowid });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -280,7 +287,7 @@ router.put("/:id", authenticate, async (req: any, res) => {
       WHERE id = ?
     `);
     
-    await stmt.run(create_date, company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day, req.params.id);
+    await stmt.run(sanitizeDate(create_date), company, contact_name, contact_by, problem, problem_type, response_time, resolve_time, solution, resolved_same_day, req.params.id);
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

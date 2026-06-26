@@ -119,6 +119,49 @@ export async function initSchema() {
         console.warn('Could not add route column to sms_logs:', e);
       }
       
+      // Ensure boolean columns are correctly typed in Postgres
+      try {
+        await pool.query(`
+          ALTER TABLE users ALTER COLUMN is_superadmin DROP DEFAULT;
+          ALTER TABLE users ALTER COLUMN is_superadmin TYPE boolean USING (
+            CASE 
+              WHEN is_superadmin::text = '1' THEN TRUE
+              WHEN is_superadmin::text = '0' THEN FALSE
+              WHEN is_superadmin::text = 'true' THEN TRUE
+              WHEN is_superadmin::text = 'false' THEN FALSE
+              ELSE FALSE
+            END
+          );
+          ALTER TABLE users ALTER COLUMN is_superadmin SET DEFAULT false;
+          
+          ALTER TABLE users ALTER COLUMN is_disabled DROP DEFAULT;
+          ALTER TABLE users ALTER COLUMN is_disabled TYPE boolean USING (
+            CASE 
+              WHEN is_disabled::text = '1' THEN TRUE
+              WHEN is_disabled::text = '0' THEN FALSE
+              WHEN is_disabled::text = 'true' THEN TRUE
+              WHEN is_disabled::text = 'false' THEN FALSE
+              ELSE FALSE
+            END
+          );
+          ALTER TABLE users ALTER COLUMN is_disabled SET DEFAULT false;
+
+          ALTER TABLE customers ALTER COLUMN is_imported DROP DEFAULT;
+          ALTER TABLE customers ALTER COLUMN is_imported TYPE boolean USING (
+            CASE 
+              WHEN is_imported::text = '1' THEN TRUE
+              WHEN is_imported::text = '0' THEN FALSE
+              WHEN is_imported::text = 'true' THEN TRUE
+              WHEN is_imported::text = 'false' THEN FALSE
+              ELSE FALSE
+            END
+          );
+          ALTER TABLE customers ALTER COLUMN is_imported SET DEFAULT false;
+        `);
+      } catch (e) {
+        console.warn('Could not migrate boolean columns:', e);
+      }
+      
       console.log("PostgreSQL schema initialized successfully.");
       
       // Automatically seed a default admin user if none exists in the database

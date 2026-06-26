@@ -81,6 +81,15 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
   const formatDate = (dateStr: any) => {
     if (!dateStr) return "-";
     try {
+      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+        const datePart = dateStr.split('T')[0];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+          const [year, month, day] = datePart.split('-');
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          return format(date, "dd-MMM-yyyy");
+        }
+      }
+
       // Handle dd-MMM-yyyy format (e.g., 18-Mar-2026)
       if (typeof dateStr === 'string' && dateStr.includes('-')) {
         const parts = dateStr.split('-');
@@ -99,7 +108,10 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
 
       const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
       if (!isValid(date)) return dateStr;
-      return format(date, "dd-MMM-yyyy");
+      
+      // Prevent timezone shift if time is zero and it was a simple date string
+      const formatted = format(date, "dd-MMM-yyyy");
+      return formatted;
     } catch (e) {
       return dateStr;
     }
@@ -108,6 +120,13 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
   const formatForInput = (dateStr: any) => {
     if (!dateStr) return "";
     try {
+      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+        const datePart = dateStr.split('T')[0];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+          return datePart;
+        }
+      }
+
       // If it's already YYYY-MM-DD, return it
       if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         return dateStr;

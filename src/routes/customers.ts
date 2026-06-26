@@ -10,6 +10,13 @@ import fs from "fs";
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
+const sanitizeDate = (val: any) => {
+  if (typeof val === 'string' && val.includes('T')) {
+    return val.split('T')[0];
+  }
+  return val || null;
+};
+
 router.get("/", authenticate, async (req: any, res) => {
   const { pipeline_stage, page, limit = 50, highlight } = req.query;
   let query = "SELECT * FROM customers WHERE deleted_at IS NULL";
@@ -125,25 +132,25 @@ router.post("/", authenticate, async (req: any, res) => {
     `);
     
     const result = await stmt.run(
-      createDate,
+      sanitizeDate(createDate),
       data.customer_name || 'Unnamed Customer',
       data.type || '',
       data.content || '',
       data.feedback_from_customer || '',
-      data.last_update || new Date().toISOString().split('T')[0],
+      sanitizeDate(data.last_update) || new Date().toISOString().split('T')[0],
       data.status || 'Testing',
-      data.completed_date || null,
+      sanitizeDate(data.completed_date),
       data.pro_account || 'No',
       data.sale_owner || req.user.name,
       data.sale_updated || '',
       data.other || '',
       data.pipeline_stage || 'NewIntegration',
       data.priority || 'Med',
-      data.next_follow_up_date || null,
+      sanitizeDate(data.next_follow_up_date),
       data.tags || '',
       data.status_in_production || '',
-      data.date_to_production || null,
-      data.date_have_traffic || null,
+      sanitizeDate(data.date_to_production),
+      sanitizeDate(data.date_have_traffic),
       new Date().toISOString(),
       JSON.stringify(customData)
     );
@@ -197,11 +204,11 @@ router.put("/:id", authenticate, async (req: any, res) => {
         WHERE id = ?
       `);
       await stmt.run(
-        data.create_date, data.customer_name, data.type, data.content, data.feedback_from_customer,
-        data.last_update, data.status, data.completed_date, data.pro_account,
+        sanitizeDate(data.create_date), data.customer_name, data.type, data.content, data.feedback_from_customer,
+        sanitizeDate(data.last_update), data.status, sanitizeDate(data.completed_date), data.pro_account,
         data.sale_owner, data.sale_updated, data.other, data.pipeline_stage,
-        data.priority, data.next_follow_up_date, data.tags,
-        data.status_in_production, data.date_to_production, data.date_have_traffic,
+        data.priority, sanitizeDate(data.next_follow_up_date), data.tags,
+        data.status_in_production, sanitizeDate(data.date_to_production), sanitizeDate(data.date_have_traffic),
         data.stage_updated_at || new Date().toISOString(),
         JSON.stringify(customData),
         req.params.id
@@ -225,11 +232,11 @@ router.put("/:id", authenticate, async (req: any, res) => {
         WHERE id = ?
       `);
       await stmt.run(
-        data.create_date, data.customer_name, data.type, data.content, data.feedback_from_customer,
-        data.last_update, data.status, data.completed_date, data.pro_account,
+        sanitizeDate(data.create_date), data.customer_name, data.type, data.content, data.feedback_from_customer,
+        sanitizeDate(data.last_update), data.status, sanitizeDate(data.completed_date), data.pro_account,
         data.sale_owner, data.sale_updated, data.other, data.pipeline_stage,
-        data.priority, data.next_follow_up_date, data.tags,
-        data.status_in_production, data.date_to_production, data.date_have_traffic,
+        data.priority, sanitizeDate(data.next_follow_up_date), data.tags,
+        data.status_in_production, sanitizeDate(data.date_to_production), sanitizeDate(data.date_have_traffic),
         JSON.stringify(customData),
         req.params.id
       );

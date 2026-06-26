@@ -10,6 +10,13 @@ import fs from "fs";
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
+const sanitizeDate = (val: any) => {
+  if (typeof val === 'string' && val.includes('T')) {
+    return val.split('T')[0];
+  }
+  return val || null;
+};
+
 router.get("/", authenticate, async (req: any, res) => {
   const { month, page = 1, search } = req.query;
   const pageSize = 10;
@@ -57,7 +64,7 @@ router.post("/", authenticate, async (req: any, res) => {
       ) VALUES (?, ?, ?)
     `);
     
-    const dbResult = await stmt.run(date, action_tasks, result);
+    const dbResult = await stmt.run(sanitizeDate(date), action_tasks, result);
     res.json({ id: dbResult.lastInsertRowid });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -259,7 +266,7 @@ router.put("/:id", authenticate, async (req: any, res) => {
       WHERE id = ?
     `);
     
-    await stmt.run(date, action_tasks, result, req.params.id);
+    await stmt.run(sanitizeDate(date), action_tasks, result, req.params.id);
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
