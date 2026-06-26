@@ -121,19 +121,32 @@ export async function initSchema() {
       
       // Convert boolean columns to integer to avoid sqlite import errors
       try {
-        await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin TYPE integer USING (CASE WHEN is_superadmin THEN 1 ELSE 0 END)');
-        await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin SET DEFAULT 0');
-      } catch (e) {}
+        // Only run if column is boolean
+        const checkType = await pool.query(`SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_superadmin'`);
+        if (checkType.rows[0]?.data_type === 'boolean') {
+          await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin DROP DEFAULT');
+          await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin TYPE integer USING (CASE WHEN is_superadmin THEN 1 ELSE 0 END)');
+          await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin SET DEFAULT 0');
+        }
+      } catch (e) { console.warn('Could not alter is_superadmin', e); }
       
       try {
-        await pool.query('ALTER TABLE users ALTER COLUMN is_disabled TYPE integer USING (CASE WHEN is_disabled THEN 1 ELSE 0 END)');
-        await pool.query('ALTER TABLE users ALTER COLUMN is_disabled SET DEFAULT 0');
-      } catch (e) {}
+        const checkType = await pool.query(`SELECT data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_disabled'`);
+        if (checkType.rows[0]?.data_type === 'boolean') {
+          await pool.query('ALTER TABLE users ALTER COLUMN is_disabled DROP DEFAULT');
+          await pool.query('ALTER TABLE users ALTER COLUMN is_disabled TYPE integer USING (CASE WHEN is_disabled THEN 1 ELSE 0 END)');
+          await pool.query('ALTER TABLE users ALTER COLUMN is_disabled SET DEFAULT 0');
+        }
+      } catch (e) { console.warn('Could not alter is_disabled', e); }
       
       try {
-        await pool.query('ALTER TABLE customers ALTER COLUMN is_imported TYPE integer USING (CASE WHEN is_imported THEN 1 ELSE 0 END)');
-        await pool.query('ALTER TABLE customers ALTER COLUMN is_imported SET DEFAULT 0');
-      } catch (e) {}
+        const checkType = await pool.query(`SELECT data_type FROM information_schema.columns WHERE table_name = 'customers' AND column_name = 'is_imported'`);
+        if (checkType.rows[0]?.data_type === 'boolean') {
+          await pool.query('ALTER TABLE customers ALTER COLUMN is_imported DROP DEFAULT');
+          await pool.query('ALTER TABLE customers ALTER COLUMN is_imported TYPE integer USING (CASE WHEN is_imported THEN 1 ELSE 0 END)');
+          await pool.query('ALTER TABLE customers ALTER COLUMN is_imported SET DEFAULT 0');
+        }
+      } catch (e) { console.warn('Could not alter is_imported', e); }
       
       console.log("PostgreSQL schema initialized successfully.");
       
