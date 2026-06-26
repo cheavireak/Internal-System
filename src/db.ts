@@ -205,7 +205,8 @@ export async function initSchema() {
       console.log("schema.sql not found, skipping schema initialization.");
     }
   } catch (error) {
-    console.error("Error initializing schema:", error);
+    // Re-throw so server.ts can catch it and gracefully exit
+    throw error;
   }
 }
 

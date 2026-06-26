@@ -21,7 +21,29 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  await initSchema();
+  try {
+    await initSchema();
+  } catch (error: any) {
+    console.error(`
+====================================================================
+🚨 DATABASE CONNECTION ERROR 🚨
+====================================================================
+It looks like the application cannot connect to PostgreSQL.
+
+The error is: ${error.message}
+
+HOW TO FIX:
+1. Ensure PostgreSQL is installed and running on your computer.
+2. Open your '.env' file in the root of the project.
+3. Set the correct DATABASE_URL with your local postgres password.
+   Format: DATABASE_URL="postgres://postgres:YOUR_PASSWORD@localhost:5432/internal-system"
+4. If you don't have a '.env' file, create one and add the DATABASE_URL.
+
+The application cannot start without a working database connection.
+====================================================================
+`);
+    process.exit(1);
+  }
 
   startScheduler();
 
