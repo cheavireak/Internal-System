@@ -1,9 +1,12 @@
 import { db, initSchema } from "./src/db.js";
+import bcrypt from "bcryptjs";
 
 async function updateAdmin() {
   await initSchema(); // Ensure tables exist
   
   const email = "cheavireak2021@gmail.com";
+  const defaultPassword = "Admin@123456";
+  const passwordHash = bcrypt.hashSync(defaultPassword, 10);
   
   // Define the full permissions object
   const permissions = {
@@ -18,17 +21,37 @@ async function updateAdmin() {
     can_delete_audit_logs: true
   };
 
-  // Update the existing user
-  const result = await db.prepare(`
-    UPDATE users 
-    SET is_superadmin = true, permissions = ?
-    WHERE email = ?
-  `).run(JSON.stringify(permissions), email);
-  
-  if (result.changes > 0) {
-    console.log("Admin user updated successfully with full permissions!");
+  const permsString = JSON.stringify(permissions);
+
+  // Check if user already exists
+  const existingUser = await db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+
+  if (existingUser) {
+    // Update the existing user
+    const result = await db.prepare(`
+      UPDATE users 
+      SET is_superadmin = true, password_hash = ?, permissions = ?, is_disabled = false, deleted_at = NULL
+      WHERE email = ?
+    `).run(passwordHash, permsString, email);
+    
+    if (result.changes > 0) {
+      console.log(`Admin user '${email}' updated successfully with full permissions and password reset!`);
+    } else {
+      console.log("Admin user update failed.");
+    }
   } else {
-    console.log("Admin user not found.");
+    // Create a new superadmin user
+    const result = await db.prepare(`
+      INSERT INTO users (email, password_hash, role, name, permissions, is_superadmin, is_disabled)
+      VALUES (?, ?, 'admin', 'Super Admin', ?, true, false)
+    `).run(email, passwordHash, permsString);
+
+    if (result.changes > 0) {
+      console.log(`Super Admin user '${email}' created successfully!`);
+      console.log(`Temporary Password: ${defaultPassword}`);
+    } else {
+      console.log("Failed to create Super Admin user.");
+    }
   }
 }
 

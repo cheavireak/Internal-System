@@ -2,6 +2,7 @@ import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -119,6 +120,44 @@ export async function initSchema() {
       }
       
       console.log("PostgreSQL schema initialized successfully.");
+      
+      // Automatically seed a default admin user if none exists in the database
+      try {
+        const defaultEmail = 'cheavireak2021@gmail.com';
+        const defaultPassword = 'Admin@123456';
+        const passwordHash = bcrypt.hashSync(defaultPassword, 10);
+        const permissions = JSON.stringify({
+          menus: ['NewIntegration', 'SandboxToProduction', 'Delay', 'Lost', 'Expired', 'SMPP', 'AdminPanel', 'AuditLogs', 'Reports', 'InternalReports', 'SMS'],
+          can_create: true,
+          can_edit: true,
+          can_delete: true,
+          can_move: true,
+          can_import: true,
+          can_export: true,
+          can_manage_columns: true,
+          can_delete_audit_logs: true
+        });
+
+        const userRes = await pool.query('SELECT * FROM users WHERE email = $1', [defaultEmail]);
+        if (userRes.rows.length === 0) {
+          await pool.query(
+            `INSERT INTO users (email, password_hash, role, name, permissions, is_superadmin, is_disabled) 
+             VALUES ($1, $2, 'admin', 'Super Admin', $3, true, false)`,
+            [defaultEmail, passwordHash, permissions]
+          );
+          console.log(`[SEED] Super Admin user '${defaultEmail}' created successfully!`);
+        } else {
+          await pool.query(
+            `UPDATE users 
+             SET password_hash = $1, role = 'admin', permissions = $2, is_superadmin = true, is_disabled = false, deleted_at = NULL 
+             WHERE email = $3`,
+            [passwordHash, permissions, defaultEmail]
+          );
+          console.log(`[SEED] Super Admin user '${defaultEmail}' updated successfully!`);
+        }
+      } catch (e) {
+        console.warn('[SEED] Could not seed default admin user:', e);
+      }
     } else {
       console.log("schema.sql not found, skipping schema initialization.");
     }
