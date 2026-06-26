@@ -30,7 +30,7 @@ async function updateAdmin() {
     // Update the existing user
     const result = await db.prepare(`
       UPDATE users 
-      SET is_superadmin = true, password_hash = ?, permissions = ?, is_disabled = false, deleted_at = NULL
+      SET is_superadmin = 1, password_hash = ?, permissions = ?, is_disabled = 0, deleted_at = NULL
       WHERE email = ?
     `).run(passwordHash, permsString, email);
     
@@ -43,7 +43,7 @@ async function updateAdmin() {
     // Create a new superadmin user
     const result = await db.prepare(`
       INSERT INTO users (email, password_hash, role, name, permissions, is_superadmin, is_disabled)
-      VALUES (?, ?, 'admin', 'Super Admin', ?, true, false)
+      VALUES (?, ?, 'admin', 'Super Admin', ?, 1, 0)
     `).run(email, passwordHash, permsString);
 
     if (result.changes > 0) {

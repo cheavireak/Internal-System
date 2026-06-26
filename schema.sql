@@ -7,8 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
   role VARCHAR(50) DEFAULT 'user',
   name VARCHAR(255),
   permissions TEXT,
-  is_superadmin BOOLEAN DEFAULT FALSE,
-  is_disabled BOOLEAN DEFAULT FALSE,
+  is_superadmin INTEGER DEFAULT 0,
+  is_disabled INTEGER DEFAULT 0,
   ip_whitelist TEXT,
   deleted_at TIMESTAMP
 );
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS customers (
   status_in_production VARCHAR(100),
   date_to_production DATE,
   date_have_traffic DATE,
-  is_imported BOOLEAN DEFAULT FALSE,
+  is_imported INTEGER DEFAULT 0,
   stage_updated_at TIMESTAMP,
   custom_data TEXT,
   create_date DATE,

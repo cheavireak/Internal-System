@@ -119,6 +119,22 @@ export async function initSchema() {
         console.warn('Could not add route column to sms_logs:', e);
       }
       
+      // Convert boolean columns to integer to avoid sqlite import errors
+      try {
+        await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin TYPE integer USING (CASE WHEN is_superadmin THEN 1 ELSE 0 END)');
+        await pool.query('ALTER TABLE users ALTER COLUMN is_superadmin SET DEFAULT 0');
+      } catch (e) {}
+      
+      try {
+        await pool.query('ALTER TABLE users ALTER COLUMN is_disabled TYPE integer USING (CASE WHEN is_disabled THEN 1 ELSE 0 END)');
+        await pool.query('ALTER TABLE users ALTER COLUMN is_disabled SET DEFAULT 0');
+      } catch (e) {}
+      
+      try {
+        await pool.query('ALTER TABLE customers ALTER COLUMN is_imported TYPE integer USING (CASE WHEN is_imported THEN 1 ELSE 0 END)');
+        await pool.query('ALTER TABLE customers ALTER COLUMN is_imported SET DEFAULT 0');
+      } catch (e) {}
+      
       console.log("PostgreSQL schema initialized successfully.");
       
       // Automatically seed a default admin user if none exists in the database
@@ -142,14 +158,14 @@ export async function initSchema() {
         if (userRes.rows.length === 0) {
           await pool.query(
             `INSERT INTO users (email, password_hash, role, name, permissions, is_superadmin, is_disabled) 
-             VALUES ($1, $2, 'admin', 'Super Admin', $3, true, false)`,
+             VALUES ($1, $2, 'admin', 'Super Admin', $3, 1, 0)`,
             [defaultEmail, passwordHash, permissions]
           );
           console.log(`[SEED] Super Admin user '${defaultEmail}' created successfully!`);
         } else {
           await pool.query(
             `UPDATE users 
-             SET password_hash = $1, role = 'admin', permissions = $2, is_superadmin = true, is_disabled = false, deleted_at = NULL 
+             SET password_hash = $1, role = 'admin', permissions = $2, is_superadmin = 1, is_disabled = 0, deleted_at = NULL 
              WHERE email = $3`,
             [passwordHash, permissions, defaultEmail]
           );
