@@ -33,12 +33,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function Dashboard() {
-  const [summary, setSummary] = useState({
+  const [summary, setSummary] = useState<any>({
     totals: {
       newIntegration: 0,
       delayProject: 0,
       lostLeads: 0,
       toProduction: 0
+    },
+    totalsByStatus: {
+      newIntegration: {},
+      delayProject: {},
+      lostLeads: {},
+      toProduction: {}
     },
     weekly: {
       newIntegration: 0,
@@ -58,7 +64,7 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isExporting, setIsExporting] = useState(false);
-  const [modalData, setModalData] = useState<{ title: string; customers: any[] } | null>(null);
+  const [modalData, setModalData] = useState<{ title: string; customers?: any[]; totalsByStatus?: Record<string, number> } | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -154,6 +160,7 @@ export default function Dashboard() {
           color="bg-blue-500" 
           periodLabel={startDate && endDate ? "in selected range" : "this week"}
           onClickWeekly={() => setModalData({ title: startDate && endDate ? "New Integrations in Range" : "New Integrations This Week", customers: summary.weeklyDetails.newIntegration })}
+          onClickIcon={() => setModalData({ title: "New Integrations Status Summary", totalsByStatus: summary.totalsByStatus?.newIntegration || {} })}
         />
         <StatCard 
           title="Sandbox → Production" 
@@ -163,6 +170,7 @@ export default function Dashboard() {
           color="bg-green-500" 
           periodLabel={startDate && endDate ? "in selected range" : "this week"}
           onClickWeekly={() => setModalData({ title: startDate && endDate ? "Sandbox → Production in Range" : "Sandbox → Production This Week", customers: summary.weeklyDetails.toProduction })}
+          onClickIcon={() => setModalData({ title: "Sandbox → Production Status Summary", totalsByStatus: summary.totalsByStatus?.toProduction || {} })}
         />
         <StatCard 
           title="Delayed Projects" 
@@ -172,6 +180,7 @@ export default function Dashboard() {
           color="bg-orange-500" 
           periodLabel={startDate && endDate ? "in selected range" : "this week"}
           onClickWeekly={() => setModalData({ title: startDate && endDate ? "Delayed Projects in Range" : "Delayed Projects This Week", customers: summary.weeklyDetails.delayProject })}
+          onClickIcon={() => setModalData({ title: "Delayed Projects Status Summary", totalsByStatus: summary.totalsByStatus?.delayProject || {} })}
         />
         <StatCard 
           title="Lost API Leads" 
@@ -181,6 +190,7 @@ export default function Dashboard() {
           color="bg-red-500" 
           periodLabel={startDate && endDate ? "in selected range" : "this week"}
           onClickWeekly={() => setModalData({ title: startDate && endDate ? "Lost API Leads in Range" : "Lost API Leads This Week", customers: summary.weeklyDetails.lostLeads })}
+          onClickIcon={() => setModalData({ title: "Lost API Leads Status Summary", totalsByStatus: summary.totalsByStatus?.lostLeads || {} })}
         />
       </div>
 
@@ -197,7 +207,20 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="p-4 overflow-y-auto">
-              {modalData.customers.length > 0 ? (
+              {modalData.totalsByStatus ? (
+                Object.keys(modalData.totalsByStatus).length > 0 ? (
+                  <ul className="space-y-2">
+                    {Object.entries(modalData.totalsByStatus).map(([status, count]) => (
+                      <li key={status} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                        <span className="font-medium">{status}</span>
+                        <span className="font-bold text-indigo-600 dark:text-indigo-400">{count as number}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-4">No data available.</p>
+                )
+              ) : modalData.customers && modalData.customers.length > 0 ? (
                 <ul className="space-y-2">
                   {modalData.customers.map((c: any, i: number) => (
                     <li key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 flex justify-between items-center">
@@ -258,10 +281,13 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ title, total, weekly, icon: Icon, color, onClickWeekly, periodLabel = "this week" }: any) {
+function StatCard({ title, total, weekly, icon: Icon, color, onClickWeekly, onClickIcon, periodLabel = "this week" }: any) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 p-6 flex items-center transition-transform hover:-translate-y-1 duration-200">
-      <div className={`p-3 rounded-lg ${color} text-white mr-4 shadow-sm`}>
+      <div 
+        className={`p-3 rounded-lg ${color} text-white mr-4 shadow-sm ${onClickIcon ? 'cursor-pointer hover:opacity-80' : ''}`}
+        onClick={onClickIcon}
+      >
         <Icon className="w-6 h-6" />
       </div>
       <div className="flex-1">

@@ -12,7 +12,7 @@ const upload = multer({ dest: "uploads/" });
 
 router.get("/summary", authenticate, async (req: any, res) => {
   const { startDate, endDate } = req.query;
-  const customers = await db.prepare("SELECT id, customer_name, pipeline_stage, create_date, last_update, is_imported, stage_updated_at FROM customers WHERE deleted_at IS NULL").all() as any[];
+  const customers = await db.prepare("SELECT id, customer_name, pipeline_stage, status, create_date, last_update, is_imported, stage_updated_at FROM customers WHERE deleted_at IS NULL").all() as any[];
   console.log("DEBUG: Summary route - customers count:", customers.length);
 
   const intervals: any[] = [];
@@ -105,6 +105,13 @@ router.get("/summary", authenticate, async (req: any, res) => {
 
   let totalNew = 0, totalProd = 0, totalDelay = 0, totalLost = 0;
 
+  let totalsByStatus = {
+    newIntegration: {} as Record<string, number>,
+    delayProject: {} as Record<string, number>,
+    lostLeads: {} as Record<string, number>,
+    toProduction: {} as Record<string, number>
+  };
+
   let periodWeekly = {
     newIntegration: 0,
     delayProject: 0,
@@ -130,15 +137,29 @@ router.get("/summary", authenticate, async (req: any, res) => {
     // Is it a real move?
     const isRealMove = c.stage_updated_at ? true : (!isImported && (updateTime - createTime) > 10000);
 
+    const cStatus = c.status || 'Not Set';
+
     // If date range is provided, count cumulative totals up to the end of the range
     if (rangeStart && rangeEnd) {
       const rStart = rangeStart.getTime();
       const rEnd = rangeEnd.getTime();
       
-      if (c.pipeline_stage === 'NewIntegration' && newIntegrationTime <= rEnd) totalNew++;
-      if (c.pipeline_stage === 'SandboxToProduction' && stageUpdateTime <= rEnd) totalProd++;
-      if (c.pipeline_stage === 'Delay' && stageUpdateTime <= rEnd) totalDelay++;
-      if (c.pipeline_stage === 'Lost' && stageUpdateTime <= rEnd) totalLost++;
+      if (c.pipeline_stage === 'NewIntegration' && newIntegrationTime <= rEnd) {
+        totalNew++;
+        totalsByStatus.newIntegration[cStatus] = (totalsByStatus.newIntegration[cStatus] || 0) + 1;
+      }
+      if (c.pipeline_stage === 'SandboxToProduction' && stageUpdateTime <= rEnd) {
+        totalProd++;
+        totalsByStatus.toProduction[cStatus] = (totalsByStatus.toProduction[cStatus] || 0) + 1;
+      }
+      if (c.pipeline_stage === 'Delay' && stageUpdateTime <= rEnd) {
+        totalDelay++;
+        totalsByStatus.delayProject[cStatus] = (totalsByStatus.delayProject[cStatus] || 0) + 1;
+      }
+      if (c.pipeline_stage === 'Lost' && stageUpdateTime <= rEnd) {
+        totalLost++;
+        totalsByStatus.lostLeads[cStatus] = (totalsByStatus.lostLeads[cStatus] || 0) + 1;
+      }
 
       // Calculate exact period movements
       if (c.pipeline_stage === 'NewIntegration') {
@@ -167,10 +188,22 @@ router.get("/summary", authenticate, async (req: any, res) => {
         }
       }
     } else {
-      if (c.pipeline_stage === 'NewIntegration') totalNew++;
-      if (c.pipeline_stage === 'SandboxToProduction') totalProd++;
-      if (c.pipeline_stage === 'Delay') totalDelay++;
-      if (c.pipeline_stage === 'Lost') totalLost++;
+      if (c.pipeline_stage === 'NewIntegration') {
+        totalNew++;
+        totalsByStatus.newIntegration[cStatus] = (totalsByStatus.newIntegration[cStatus] || 0) + 1;
+      }
+      if (c.pipeline_stage === 'SandboxToProduction') {
+        totalProd++;
+        totalsByStatus.toProduction[cStatus] = (totalsByStatus.toProduction[cStatus] || 0) + 1;
+      }
+      if (c.pipeline_stage === 'Delay') {
+        totalDelay++;
+        totalsByStatus.delayProject[cStatus] = (totalsByStatus.delayProject[cStatus] || 0) + 1;
+      }
+      if (c.pipeline_stage === 'Lost') {
+        totalLost++;
+        totalsByStatus.lostLeads[cStatus] = (totalsByStatus.lostLeads[cStatus] || 0) + 1;
+      }
     }
 
     intervals.forEach(w => {
@@ -235,6 +268,7 @@ router.get("/summary", authenticate, async (req: any, res) => {
       lostLeads: totalLost,
       toProduction: totalProd
     },
+    totalsByStatus,
     weekly: periodWeekly,
     weeklyDetails: periodDetails,
     graphData: intervals.map(w => ({

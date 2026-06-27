@@ -14,7 +14,7 @@ types.setTypeParser(1082, function(val: string) {
 });
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://postgres:04122@localhost:5432/internal-system',
+  connectionString: process.env.DATABASE_URL || 'postgres://postgres:****@localhost:****/****-system',
 });
 
 // Helper to convert SQLite ? to Postgres $1, $2
