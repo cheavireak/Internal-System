@@ -128,7 +128,7 @@ router.post("/", authenticate, async (req: any, res) => {
         last_update, status, completed_date, pro_account, sale_owner,
         sale_updated, other, pipeline_stage, priority, next_follow_up_date, tags,
         status_in_production, date_to_production, date_have_traffic, is_imported, stage_updated_at, custom_data
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, ?, ?)
     `);
     
     const result = await stmt.run(
