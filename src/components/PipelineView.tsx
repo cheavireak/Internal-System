@@ -1261,11 +1261,47 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
       {viewingCustomer && (() => {
         const highlightKey = stage === 'SandboxToProduction' ? 'status_in_production' : 'feedback_from_customer';
         const highlightLabel = stage === 'SandboxToProduction' ? 'Status in Production' : 'Feedback';
+        const currentIdx = customers.findIndex((c: any) => c.id === viewingCustomer.id);
+        const hasPrev = currentIdx > 0;
+        const hasNext = currentIdx !== -1 && currentIdx < customers.length - 1;
 
         return (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] flex flex-col relative">
             
+            {/* Navigation Arrows */}
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 -ml-16 hidden md:flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  if (hasPrev) {
+                    setViewingCustomer(customers[currentIdx - 1]);
+                    setEditForm({ ...customers[currentIdx - 1] });
+                  }
+                }}
+                disabled={!hasPrev}
+                className={`p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 transition-all ${hasPrev ? 'hover:scale-110 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 cursor-pointer' : 'opacity-50 cursor-not-allowed text-gray-400'}`}
+                title="Previous Customer"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="absolute top-1/2 -translate-y-1/2 right-0 -mr-16 hidden md:flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  if (hasNext) {
+                    setViewingCustomer(customers[currentIdx + 1]);
+                    setEditForm({ ...customers[currentIdx + 1] });
+                  }
+                }}
+                disabled={!hasNext}
+                className={`p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 transition-all ${hasNext ? 'hover:scale-110 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 cursor-pointer' : 'opacity-50 cursor-not-allowed text-gray-400'}`}
+                title="Next Customer"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </div>
+
             {/* Header */}
             <div className="flex justify-between items-start p-6 border-b border-gray-100 dark:border-gray-700">
               <div>
@@ -1396,38 +1432,67 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-900/50 rounded-b-2xl">
-              {canEdit && (
+            <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex justify-between gap-3 bg-gray-50 dark:bg-gray-900/50 rounded-b-2xl">
+              <div className="flex gap-2 md:hidden">
                 <button
                   onClick={() => {
-                    if (isViewModeEditable) {
-                      handleViewSave(viewingCustomer.id);
-                    } else {
-                      setIsViewModeEditable(true);
+                    if (hasPrev) {
+                      setViewingCustomer(customers[currentIdx - 1]);
+                      setEditForm({ ...customers[currentIdx - 1] });
                     }
                   }}
-                  className={`px-6 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors ${
-                    isViewModeEditable 
-                      ? 'bg-green-600 text-white hover:bg-green-700' 
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  }`}
+                  disabled={!hasPrev}
+                  className={`p-2 rounded-lg font-medium text-sm flex items-center transition-colors ${hasPrev ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed opacity-50'}`}
                 >
-                  {isViewModeEditable ? (
-                    <><Save className="w-4 h-4" /> Save</>
-                  ) : (
-                    <><Edit2 className="w-4 h-4" /> Edit</>
-                  )}
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
-              )}
-              <button
-                onClick={() => {
-                  setViewingCustomer(null);
-                  setIsViewModeEditable(false);
-                }}
-                className="px-6 py-2 text-gray-700 dark:text-gray-300 font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-700 bg-gray-100 dark:bg-gray-800 rounded-lg transition-colors"
-              >
-                Close
-              </button>
+                <button
+                  onClick={() => {
+                    if (hasNext) {
+                      setViewingCustomer(customers[currentIdx + 1]);
+                      setEditForm({ ...customers[currentIdx + 1] });
+                    }
+                  }}
+                  disabled={!hasNext}
+                  className={`p-2 rounded-lg font-medium text-sm flex items-center transition-colors ${hasNext ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed opacity-50'}`}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex gap-3 ml-auto">
+                {canEdit && (
+                  <button
+                    onClick={() => {
+                      if (isViewModeEditable) {
+                        handleViewSave(viewingCustomer.id);
+                      } else {
+                        setIsViewModeEditable(true);
+                      }
+                    }}
+                    className={`px-6 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors ${
+                      isViewModeEditable 
+                        ? 'bg-green-600 text-white hover:bg-green-700' 
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
+                  >
+                    {isViewModeEditable ? (
+                      <><Save className="w-4 h-4" /> Save</>
+                    ) : (
+                      <><Edit2 className="w-4 h-4" /> Edit</>
+                    )}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setViewingCustomer(null);
+                    setIsViewModeEditable(false);
+                  }}
+                  className="px-6 py-2 text-gray-700 dark:text-gray-300 font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-700 bg-gray-100 dark:bg-gray-800 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
