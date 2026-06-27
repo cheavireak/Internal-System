@@ -24,83 +24,41 @@ router.get("/summary", authenticate, async (req: any, res) => {
     rangeStart.setHours(0, 0, 0, 0);
     rangeEnd = new Date(endDate);
     rangeEnd.setHours(23, 59, 59, 999);
-
-    let currentStart = new Date(rangeStart);
-    currentStart.setDate(currentStart.getDate() - currentStart.getDay());
-    currentStart.setHours(0, 0, 0, 0);
-
-    let finalEnd = new Date(rangeEnd);
-    finalEnd.setDate(finalEnd.getDate() + (6 - finalEnd.getDay()));
-    finalEnd.setHours(23, 59, 59, 999);
-
-    while (currentStart < finalEnd) {
-      let currentEnd = new Date(currentStart);
-      currentEnd.setDate(currentStart.getDate() + 6);
-      currentEnd.setHours(23, 59, 59, 999);
-
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const label = `${months[currentStart.getMonth()]} ${currentStart.getDate()} - ${months[currentEnd.getMonth()]} ${currentEnd.getDate()}`;
-
-      intervals.push({
-        start: new Date(currentStart),
-        end: new Date(currentEnd),
-        label,
-        newIntegration: 0,
-        toProduction: 0,
-        delayProject: 0,
-        lostLeads: 0,
-        totalNewIntegration: 0,
-        totalToProduction: 0,
-        totalDelayProject: 0,
-        totalLostLeads: 0,
-        newIntegrationCustomers: [],
-        toProductionCustomers: [],
-        delayProjectCustomers: [],
-        lostLeadsCustomers: []
-      });
-
-      currentStart.setDate(currentStart.getDate() + 7);
-    }
   } else {
     const now = new Date();
-    const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
-    const daysToSaturday = 6 - currentDay;
-    
-    const currentWeekEnd = new Date(now);
-    currentWeekEnd.setDate(now.getDate() + daysToSaturday);
-    currentWeekEnd.setHours(23, 59, 59, 999);
+    rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    rangeEnd.setHours(23, 59, 59, 999);
+  }
 
-    const NUM_WEEKS = 4;
+  let currentStart = new Date(rangeStart);
+  while (currentStart <= rangeEnd) {
+    let currentEnd = new Date(currentStart);
+    currentEnd.setHours(23, 59, 59, 999);
 
-    for (let i = NUM_WEEKS - 1; i >= 0; i--) {
-      const end = new Date(currentWeekEnd);
-      end.setDate(currentWeekEnd.getDate() - (i * 7));
-      
-      const start = new Date(end);
-      start.setDate(end.getDate() - 6);
-      start.setHours(0, 0, 0, 0);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const label = `${months[currentStart.getMonth()]} ${currentStart.getDate()}`;
 
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const label = `${months[start.getMonth()]} ${start.getDate()} - ${months[end.getMonth()]} ${end.getDate()}`;
+    intervals.push({
+      start: new Date(currentStart),
+      end: new Date(currentEnd),
+      label,
+      newIntegration: 0,
+      toProduction: 0,
+      delayProject: 0,
+      lostLeads: 0,
+      totalNewIntegration: 0,
+      totalToProduction: 0,
+      totalDelayProject: 0,
+      totalLostLeads: 0,
+      newIntegrationCustomers: [],
+      toProductionCustomers: [],
+      delayProjectCustomers: [],
+      lostLeadsCustomers: []
+    });
 
-      intervals.push({
-        start,
-        end,
-        label,
-        newIntegration: 0,
-        toProduction: 0,
-        delayProject: 0,
-        lostLeads: 0,
-        totalNewIntegration: 0,
-        totalToProduction: 0,
-        totalDelayProject: 0,
-        totalLostLeads: 0,
-        newIntegrationCustomers: [],
-        toProductionCustomers: [],
-        delayProjectCustomers: [],
-        lostLeadsCustomers: []
-      });
-    }
+    currentStart.setDate(currentStart.getDate() + 1);
   }
 
   let totalNew = 0, totalProd = 0, totalDelay = 0, totalLost = 0;
@@ -139,70 +97,50 @@ router.get("/summary", authenticate, async (req: any, res) => {
 
     const cStatus = c.status || 'Not Set';
 
-    // If date range is provided, count cumulative totals up to the end of the range
-    if (rangeStart && rangeEnd) {
-      const rStart = rangeStart.getTime();
-      const rEnd = rangeEnd.getTime();
-      
-      if (c.pipeline_stage === 'NewIntegration' && newIntegrationTime <= rEnd) {
-        totalNew++;
-        totalsByStatus.newIntegration[cStatus] = (totalsByStatus.newIntegration[cStatus] || 0) + 1;
-      }
-      if (c.pipeline_stage === 'SandboxToProduction' && stageUpdateTime <= rEnd) {
-        totalProd++;
-        totalsByStatus.toProduction[cStatus] = (totalsByStatus.toProduction[cStatus] || 0) + 1;
-      }
-      if (c.pipeline_stage === 'Delay' && stageUpdateTime <= rEnd) {
-        totalDelay++;
-        totalsByStatus.delayProject[cStatus] = (totalsByStatus.delayProject[cStatus] || 0) + 1;
-      }
-      if (c.pipeline_stage === 'Lost' && stageUpdateTime <= rEnd) {
-        totalLost++;
-        totalsByStatus.lostLeads[cStatus] = (totalsByStatus.lostLeads[cStatus] || 0) + 1;
-      }
+    const rStart = rangeStart.getTime();
+    const rEnd = rangeEnd.getTime();
+    
+    if (c.pipeline_stage === 'NewIntegration' && newIntegrationTime <= rEnd) {
+      totalNew++;
+      totalsByStatus.newIntegration[cStatus] = (totalsByStatus.newIntegration[cStatus] || 0) + 1;
+    }
+    if (c.pipeline_stage === 'SandboxToProduction' && stageUpdateTime <= rEnd) {
+      totalProd++;
+      totalsByStatus.toProduction[cStatus] = (totalsByStatus.toProduction[cStatus] || 0) + 1;
+    }
+    if (c.pipeline_stage === 'Delay' && stageUpdateTime <= rEnd) {
+      totalDelay++;
+      totalsByStatus.delayProject[cStatus] = (totalsByStatus.delayProject[cStatus] || 0) + 1;
+    }
+    if (c.pipeline_stage === 'Lost' && stageUpdateTime <= rEnd) {
+      totalLost++;
+      totalsByStatus.lostLeads[cStatus] = (totalsByStatus.lostLeads[cStatus] || 0) + 1;
+    }
 
-      // Calculate exact period movements
-      if (c.pipeline_stage === 'NewIntegration') {
-        const isNewIntMove = c.stage_updated_at ? true : !isImported;
-        if (isNewIntMove && newIntegrationTime >= rStart && newIntegrationTime <= rEnd) {
-          periodWeekly.newIntegration++;
-          periodDetails.newIntegration.push({ id: c.id, name: c.customer_name, date: new Date(newIntegrationTime).toISOString() });
-        }
+    // Calculate exact period movements
+    if (c.pipeline_stage === 'NewIntegration') {
+      const isNewIntMove = c.stage_updated_at ? true : !isImported;
+      if (isNewIntMove && newIntegrationTime >= rStart && newIntegrationTime <= rEnd) {
+        periodWeekly.newIntegration++;
+        periodDetails.newIntegration.push({ id: c.id, name: c.customer_name, date: new Date(newIntegrationTime).toISOString() });
       }
-      if (c.pipeline_stage === 'SandboxToProduction' && isRealMove) {
-        if (stageUpdateTime >= rStart && stageUpdateTime <= rEnd) {
-          periodWeekly.toProduction++;
-          periodDetails.toProduction.push({ id: c.id, name: c.customer_name, date: new Date(stageUpdateTime).toISOString() });
-        }
+    }
+    if (c.pipeline_stage === 'SandboxToProduction' && isRealMove) {
+      if (stageUpdateTime >= rStart && stageUpdateTime <= rEnd) {
+        periodWeekly.toProduction++;
+        periodDetails.toProduction.push({ id: c.id, name: c.customer_name, date: new Date(stageUpdateTime).toISOString() });
       }
-      if (c.pipeline_stage === 'Delay' && isRealMove) {
-        if (stageUpdateTime >= rStart && stageUpdateTime <= rEnd) {
-          periodWeekly.delayProject++;
-          periodDetails.delayProject.push({ id: c.id, name: c.customer_name, date: new Date(stageUpdateTime).toISOString() });
-        }
+    }
+    if (c.pipeline_stage === 'Delay' && isRealMove) {
+      if (stageUpdateTime >= rStart && stageUpdateTime <= rEnd) {
+        periodWeekly.delayProject++;
+        periodDetails.delayProject.push({ id: c.id, name: c.customer_name, date: new Date(stageUpdateTime).toISOString() });
       }
-      if (c.pipeline_stage === 'Lost' && isRealMove) {
-        if (stageUpdateTime >= rStart && stageUpdateTime <= rEnd) {
-          periodWeekly.lostLeads++;
-          periodDetails.lostLeads.push({ id: c.id, name: c.customer_name, date: new Date(stageUpdateTime).toISOString() });
-        }
-      }
-    } else {
-      if (c.pipeline_stage === 'NewIntegration') {
-        totalNew++;
-        totalsByStatus.newIntegration[cStatus] = (totalsByStatus.newIntegration[cStatus] || 0) + 1;
-      }
-      if (c.pipeline_stage === 'SandboxToProduction') {
-        totalProd++;
-        totalsByStatus.toProduction[cStatus] = (totalsByStatus.toProduction[cStatus] || 0) + 1;
-      }
-      if (c.pipeline_stage === 'Delay') {
-        totalDelay++;
-        totalsByStatus.delayProject[cStatus] = (totalsByStatus.delayProject[cStatus] || 0) + 1;
-      }
-      if (c.pipeline_stage === 'Lost') {
-        totalLost++;
-        totalsByStatus.lostLeads[cStatus] = (totalsByStatus.lostLeads[cStatus] || 0) + 1;
+    }
+    if (c.pipeline_stage === 'Lost' && isRealMove) {
+      if (stageUpdateTime >= rStart && stageUpdateTime <= rEnd) {
+        periodWeekly.lostLeads++;
+        periodDetails.lostLeads.push({ id: c.id, name: c.customer_name, date: new Date(stageUpdateTime).toISOString() });
       }
     }
 
@@ -244,22 +182,6 @@ router.get("/summary", authenticate, async (req: any, res) => {
       if (c.pipeline_stage === 'Lost' && stageUpdateTime <= wEnd) w.totalLostLeads++;
     });
   });
-
-  if (!rangeStart || !rangeEnd) {
-    const lastInterval = intervals[intervals.length - 1];
-    periodWeekly = {
-      newIntegration: lastInterval.newIntegration,
-      delayProject: lastInterval.delayProject,
-      lostLeads: lastInterval.lostLeads,
-      toProduction: lastInterval.toProduction
-    };
-    periodDetails = {
-      newIntegration: lastInterval.newIntegrationCustomers,
-      delayProject: lastInterval.delayProjectCustomers,
-      lostLeads: lastInterval.lostLeadsCustomers,
-      toProduction: lastInterval.toProductionCustomers
-    };
-  }
 
   res.json({
     totals: {

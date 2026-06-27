@@ -146,7 +146,7 @@ export default function Dashboard() {
             className="bg-indigo-600 dark:bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
-            {isExporting ? "Generating Report..." : "Export Weekly Report (Excel)"}
+            {isExporting ? "Generating Report..." : "Export Report (Excel)"}
           </button>
         </div>
       </div>
@@ -158,8 +158,8 @@ export default function Dashboard() {
           weekly={summary.weekly.newIntegration} 
           icon={BarChart3} 
           color="bg-blue-500" 
-          periodLabel={startDate && endDate ? "in selected range" : "this week"}
-          onClickWeekly={() => setModalData({ title: startDate && endDate ? "New Integrations in Range" : "New Integrations This Week", customers: summary.weeklyDetails.newIntegration })}
+          periodLabel={startDate && endDate ? "in selected range" : `this month (${new Date().toLocaleString('default', { month: 'long' })})`}
+          onClickWeekly={() => setModalData({ title: startDate && endDate ? "New Integrations in Range" : "New Integrations This Month", customers: summary.weeklyDetails.newIntegration })}
           onClickIcon={() => setModalData({ title: "New Integrations Status Summary", totalsByStatus: summary.totalsByStatus?.newIntegration || {} })}
         />
         <StatCard 
@@ -168,8 +168,8 @@ export default function Dashboard() {
           weekly={summary.weekly.toProduction} 
           icon={CheckCircle2} 
           color="bg-green-500" 
-          periodLabel={startDate && endDate ? "in selected range" : "this week"}
-          onClickWeekly={() => setModalData({ title: startDate && endDate ? "Sandbox → Production in Range" : "Sandbox → Production This Week", customers: summary.weeklyDetails.toProduction })}
+          periodLabel={startDate && endDate ? "in selected range" : `this month (${new Date().toLocaleString('default', { month: 'long' })})`}
+          onClickWeekly={() => setModalData({ title: startDate && endDate ? "Sandbox → Production in Range" : "Sandbox → Production This Month", customers: summary.weeklyDetails.toProduction })}
           onClickIcon={() => setModalData({ title: "Sandbox → Production Status Summary", totalsByStatus: summary.totalsByStatus?.toProduction || {} })}
         />
         <StatCard 
@@ -178,8 +178,8 @@ export default function Dashboard() {
           weekly={summary.weekly.delayProject} 
           icon={AlertTriangle} 
           color="bg-orange-500" 
-          periodLabel={startDate && endDate ? "in selected range" : "this week"}
-          onClickWeekly={() => setModalData({ title: startDate && endDate ? "Delayed Projects in Range" : "Delayed Projects This Week", customers: summary.weeklyDetails.delayProject })}
+          periodLabel={startDate && endDate ? "in selected range" : `this month (${new Date().toLocaleString('default', { month: 'long' })})`}
+          onClickWeekly={() => setModalData({ title: startDate && endDate ? "Delayed Projects in Range" : "Delayed Projects This Month", customers: summary.weeklyDetails.delayProject })}
           onClickIcon={() => setModalData({ title: "Delayed Projects Status Summary", totalsByStatus: summary.totalsByStatus?.delayProject || {} })}
         />
         <StatCard 
@@ -188,8 +188,8 @@ export default function Dashboard() {
           weekly={summary.weekly.lostLeads} 
           icon={TrendingUp} 
           color="bg-red-500" 
-          periodLabel={startDate && endDate ? "in selected range" : "this week"}
-          onClickWeekly={() => setModalData({ title: startDate && endDate ? "Lost API Leads in Range" : "Lost API Leads This Week", customers: summary.weeklyDetails.lostLeads })}
+          periodLabel={startDate && endDate ? "in selected range" : `this month (${new Date().toLocaleString('default', { month: 'long' })})`}
+          onClickWeekly={() => setModalData({ title: startDate && endDate ? "Lost API Leads in Range" : "Lost API Leads This Month", customers: summary.weeklyDetails.lostLeads })}
           onClickIcon={() => setModalData({ title: "Lost API Leads Status Summary", totalsByStatus: summary.totalsByStatus?.lostLeads || {} })}
         />
       </div>
