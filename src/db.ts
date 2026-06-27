@@ -1,10 +1,17 @@
-import { Pool } from 'pg';
+import pg from 'pg';
+const { Pool, types } = pg;
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 
 dotenv.config();
+
+// Tell pg to return DATE columns as raw strings, avoiding timezone conversion.
+// 1082 is the OID for DATE
+types.setTypeParser(1082, function(val: string) {
+  return val;
+});
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgres://postgres:04122@localhost:5432/internal-system',
