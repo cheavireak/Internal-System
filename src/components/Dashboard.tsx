@@ -8,21 +8,36 @@ import { useToast } from "../contexts/ToastContext";
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md min-w-[250px]">
+      <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md min-w-[250px] max-w-sm">
         <p className="font-semibold text-gray-900 dark:text-white mb-3">{label}</p>
         {payload.map((entry: any, index: number) => {
           const totalKey = `total${entry.dataKey.charAt(0).toUpperCase() + entry.dataKey.slice(1)}`;
+          const customersKey = `${entry.dataKey}Customers`;
           const totalVal = entry.payload[totalKey];
+          const customers = entry.payload[customersKey] || [];
+          
           return (
-            <div key={index} className="flex items-center justify-between gap-4 text-sm mb-2">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></span>
-                <span className="font-medium text-gray-700 dark:text-gray-300">{entry.name}:</span>
+            <div key={index} className="mb-3 last:mb-0">
+              <div className="flex items-center justify-between gap-4 text-sm mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{entry.name}:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold" style={{ color: entry.color }}>{entry.value}</span>
+                  <span className="text-gray-400 text-xs w-16 text-right">(Total: {totalVal})</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold" style={{ color: entry.color }}>{entry.value}</span>
-                <span className="text-gray-400 text-xs w-16 text-right">(Total: {totalVal})</span>
-              </div>
+              {customers.length > 0 && (
+                <div className="pl-5 text-xs text-gray-500 dark:text-gray-400 max-h-24 overflow-y-auto mt-1 space-y-1">
+                  {customers.map((c: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-1 rounded">
+                      <span className="truncate pr-2">{c.name}</span>
+                      <span className="shrink-0 font-medium">{format(new Date(c.date), 'HH:mm')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -61,11 +76,26 @@ export default function Dashboard() {
     graphData: []
   });
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const getStartOfMonth = () => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().split('T')[0];
+  };
+
+  const getToday = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
+  const [startDate, setStartDate] = useState(getStartOfMonth());
+  const [endDate, setEndDate] = useState(getToday());
   const [isExporting, setIsExporting] = useState(false);
   const [modalData, setModalData] = useState<{ title: string; customers?: any[]; totalsByStatus?: Record<string, number> } | null>(null);
   const { showToast } = useToast();
+
+  const isDefaultRange = startDate === getStartOfMonth() && endDate === getToday();
+  const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
+  const displayLabel = isDefaultRange ? `this month (${currentMonthName})` : (startDate && endDate ? `${format(new Date(startDate), 'MMM d')} - ${format(new Date(endDate), 'MMM d')}` : `this month (${currentMonthName})`);
+  const modalLabel = isDefaultRange ? "This Month" : (startDate && endDate ? "in Selected Range" : "This Month");
 
   useEffect(() => {
     let url = "/api/summary";
@@ -131,9 +161,9 @@ export default function Dashboard() {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
-            {(startDate || endDate) && (
+            {(!isDefaultRange) && (
               <button 
-                onClick={() => { setStartDate(""); setEndDate(""); }}
+                onClick={() => { setStartDate(getStartOfMonth()); setEndDate(getToday()); }}
                 className="text-xs text-red-500 hover:text-red-700 ml-2 font-medium"
               >
                 Clear
@@ -158,8 +188,8 @@ export default function Dashboard() {
           weekly={summary.weekly.newIntegration} 
           icon={BarChart3} 
           color="bg-blue-500" 
-          periodLabel={startDate && endDate ? "in selected range" : `this month (${new Date().toLocaleString('default', { month: 'long' })})`}
-          onClickWeekly={() => setModalData({ title: startDate && endDate ? "New Integrations in Range" : "New Integrations This Month", customers: summary.weeklyDetails.newIntegration })}
+          periodLabel={displayLabel}
+          onClickWeekly={() => setModalData({ title: `New Integrations ${modalLabel}`, customers: summary.weeklyDetails.newIntegration })}
           onClickIcon={() => setModalData({ title: "New Integrations Status Summary", totalsByStatus: summary.totalsByStatus?.newIntegration || {} })}
         />
         <StatCard 
@@ -168,8 +198,8 @@ export default function Dashboard() {
           weekly={summary.weekly.toProduction} 
           icon={CheckCircle2} 
           color="bg-green-500" 
-          periodLabel={startDate && endDate ? "in selected range" : `this month (${new Date().toLocaleString('default', { month: 'long' })})`}
-          onClickWeekly={() => setModalData({ title: startDate && endDate ? "Sandbox → Production in Range" : "Sandbox → Production This Month", customers: summary.weeklyDetails.toProduction })}
+          periodLabel={displayLabel}
+          onClickWeekly={() => setModalData({ title: `Sandbox → Production ${modalLabel}`, customers: summary.weeklyDetails.toProduction })}
           onClickIcon={() => setModalData({ title: "Sandbox → Production Status Summary", totalsByStatus: summary.totalsByStatus?.toProduction || {} })}
         />
         <StatCard 
@@ -178,8 +208,8 @@ export default function Dashboard() {
           weekly={summary.weekly.delayProject} 
           icon={AlertTriangle} 
           color="bg-orange-500" 
-          periodLabel={startDate && endDate ? "in selected range" : `this month (${new Date().toLocaleString('default', { month: 'long' })})`}
-          onClickWeekly={() => setModalData({ title: startDate && endDate ? "Delayed Projects in Range" : "Delayed Projects This Month", customers: summary.weeklyDetails.delayProject })}
+          periodLabel={displayLabel}
+          onClickWeekly={() => setModalData({ title: `Delayed Projects ${modalLabel}`, customers: summary.weeklyDetails.delayProject })}
           onClickIcon={() => setModalData({ title: "Delayed Projects Status Summary", totalsByStatus: summary.totalsByStatus?.delayProject || {} })}
         />
         <StatCard 
@@ -188,8 +218,8 @@ export default function Dashboard() {
           weekly={summary.weekly.lostLeads} 
           icon={TrendingUp} 
           color="bg-red-500" 
-          periodLabel={startDate && endDate ? "in selected range" : `this month (${new Date().toLocaleString('default', { month: 'long' })})`}
-          onClickWeekly={() => setModalData({ title: startDate && endDate ? "Lost API Leads in Range" : "Lost API Leads This Month", customers: summary.weeklyDetails.lostLeads })}
+          periodLabel={displayLabel}
+          onClickWeekly={() => setModalData({ title: `Lost API Leads ${modalLabel}`, customers: summary.weeklyDetails.lostLeads })}
           onClickIcon={() => setModalData({ title: "Lost API Leads Status Summary", totalsByStatus: summary.totalsByStatus?.lostLeads || {} })}
         />
       </div>
