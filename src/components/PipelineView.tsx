@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Edit2, Trash2, Save, X, Upload, ArrowRight, Copy, Settings, Eye, EyeOff, ArrowUp, ArrowDown, Clock, ChevronLeft, ChevronRight, Minus } from "lucide-react";
+import { Plus, Edit2, Trash2, Save, X, Upload, ArrowRight, Copy, Settings, Eye, EyeOff, ArrowUp, ArrowDown, Clock, ChevronLeft, ChevronRight, Minus, Filter } from "lucide-react";
 import * as xlsx from "xlsx";
 import { format, parseISO, isValid, differenceInDays } from "date-fns";
 import TrashModal from "./TrashModal";
@@ -179,6 +179,9 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
     });
   };
 
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [activeFilterCol, setActiveFilterCol] = useState<string | null>(null);
+
   const fetchCustomers = () => {
     setIsLoading(true);
     const searchParams = new URLSearchParams(location.search);
@@ -187,6 +190,10 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
     let url = `/api/customers?pipeline_stage=${stage}&page=${currentPage}&limit=${itemsPerPage}`;
     if (highlight) {
       url += `&highlight=${highlight}`;
+    }
+    
+    if (Object.keys(filters).length > 0) {
+      url += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
     }
 
     fetch(url, {
@@ -240,7 +247,7 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
   useEffect(() => {
     fetchColumns();
     fetchCustomers();
-  }, [stage, currentPage, location.search]);
+  }, [stage, currentPage, location.search, filters]);
 
   const handleSaveColumns = async () => {
     try {
@@ -867,11 +874,94 @@ export default function PipelineView({ stage, title, user }: { stage: string, ti
                 {dbColumns.filter(col => !col.hidden).map(col => {
                   const isWrapCol = col.key === 'feedback_from_customer' || col.key === 'status_in_production';
                   const isOtherCol = col.key === 'other';
-                  let thClass = "px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider";
+                  let thClass = "px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider relative group cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors";
                   if (isOtherCol) thClass += " w-[240px] min-w-[240px] max-w-[240px]";
                   else if (isWrapCol) thClass += " w-[300px] min-w-[300px] max-w-[300px]";
+                  
                   return (
-                    <th key={col.key} className={thClass}>{col.label}</th>
+                    <th key={col.key} className={thClass} onClick={() => setActiveFilterCol(activeFilterCol === col.key ? null : col.key)}>
+                      <div className="flex items-center justify-between">
+                        <span>{col.label}</span>
+                        <Filter className={`w-3 h-3 ${filters[col.key] ? 'text-indigo-600 dark:text-indigo-400 opacity-100' : 'opacity-0 group-hover:opacity-50'}`} />
+                      </div>
+                      
+                      {activeFilterCol === col.key && (
+                        <div 
+                          className="absolute z-50 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 min-w-[200px]"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-xs font-semibold normal-case">Filter {col.label}</span>
+                            <button 
+                              onClick={() => setActiveFilterCol(null)}
+                              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                          {col.type === 'select' ? (
+                            <select
+                              className="w-full text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded p-1.5 mb-2 focus:ring-1 focus:ring-indigo-500 focus:outline-none normal-case font-normal"
+                              value={filters[col.key] || ''}
+                              onChange={(e) => {
+                                const newFilters = { ...filters };
+                                if (e.target.value) {
+                                  newFilters[col.key] = e.target.value;
+                                } else {
+                                  delete newFilters[col.key];
+                                }
+                                setFilters(newFilters);
+                              }}
+                            >
+                              <option value="">Any</option>
+                              {col.options?.map((opt: string) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input 
+                              type="text" 
+                              className="w-full text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded p-1.5 mb-2 focus:ring-1 focus:ring-indigo-500 focus:outline-none normal-case font-normal"
+                              placeholder="Enter value..."
+                              value={filters[col.key] || ''}
+                              onChange={(e) => {
+                                const newFilters = { ...filters };
+                                if (e.target.value) {
+                                  newFilters[col.key] = e.target.value;
+                                } else {
+                                  delete newFilters[col.key];
+                                }
+                                setFilters(newFilters);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  setActiveFilterCol(null);
+                                }
+                              }}
+                            />
+                          )}
+                          <div className="flex gap-2">
+                            <button 
+                              className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs py-1.5 rounded normal-case font-medium"
+                              onClick={() => {
+                                const newFilters = { ...filters };
+                                delete newFilters[col.key];
+                                setFilters(newFilters);
+                                setActiveFilterCol(null);
+                              }}
+                            >
+                              Clear
+                            </button>
+                            <button 
+                              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs py-1.5 rounded normal-case font-medium"
+                              onClick={() => setActiveFilterCol(null)}
+                            >
+                              Apply
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </th>
                   );
                 })}
                 {(canEdit || canDelete || canMove) && (

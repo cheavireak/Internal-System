@@ -18,7 +18,7 @@ const sanitizeDate = (val: any) => {
 };
 
 router.get("/", authenticate, async (req: any, res) => {
-  const { pipeline_stage, page, limit = 50, highlight } = req.query;
+  const { pipeline_stage, page, limit = 50, highlight, filters } = req.query;
   let query = "SELECT * FROM customers WHERE deleted_at IS NULL";
   let countQuery = "SELECT COUNT(*) as total FROM customers WHERE deleted_at IS NULL";
   let params: any[] = [];
@@ -28,6 +28,24 @@ router.get("/", authenticate, async (req: any, res) => {
     countQuery += " AND pipeline_stage = ?";
     params.push(pipeline_stage);
   }
+
+  if (filters) {
+    try {
+      const parsedFilters = JSON.parse(filters);
+      for (const [key, value] of Object.entries(parsedFilters)) {
+        if (value) {
+          // Allow alphanumeric and underscores for column names to prevent SQL injection
+          if (/^[a-zA-Z0-9_]+$/.test(key)) {
+            query += ` AND ${key} LIKE ?`;
+            countQuery += ` AND ${key} LIKE ?`;
+            params.push(`%${value}%`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse filters:", e);
+    }
+  }
   
   query += " ORDER BY create_date DESC";
   
@@ -36,9 +54,10 @@ router.get("/", authenticate, async (req: any, res) => {
 
   if (highlight) {
     // Find the row number of the highlighted customer to determine its page
-    const allIdsQuery = `SELECT id FROM customers WHERE deleted_at IS NULL ${pipeline_stage ? "AND pipeline_stage = ?" : ""} ORDER BY create_date DESC`;
-    const allIdsParams = pipeline_stage ? [pipeline_stage] : [];
-    const allIds = await db.prepare(allIdsQuery).all(...allIdsParams) as { id: number }[];
+    const allIdsQuery = `SELECT id FROM customers WHERE deleted_at IS NULL ${pipeline_stage ? "AND pipeline_stage = ?" : ""} ${filters ? "AND " + query.split("WHERE deleted_at IS NULL ")[1].split(" ORDER BY")[0] : ""} ORDER BY create_date DESC`;
+    // We already have the query built up to ORDER BY, we can just use `query` but replace `*` with `id`
+    const allIdsQueryRevised = query.replace("SELECT * FROM", "SELECT id FROM").split(" LIMIT ")[0];
+    const allIds = await db.prepare(allIdsQueryRevised).all(...params) as { id: number }[];
     
     const index = allIds.findIndex(c => c.id === Number(highlight));
     if (index !== -1) {
