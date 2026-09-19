@@ -34,8 +34,8 @@ router.get("/", authenticate, async (req: any, res) => {
 
   if (search) {
     const searchParam = `%${search}%`;
-    query += " AND (company LIKE ? OR contact_name LIKE ? OR problem LIKE ?)";
-    countQuery += " AND (company LIKE ? OR contact_name LIKE ? OR problem LIKE ?)";
+    query += " AND (company ILIKE ? OR contact_name ILIKE ? OR problem ILIKE ?)";
+    countQuery += " AND (company ILIKE ? OR contact_name ILIKE ? OR problem ILIKE ?)";
     params.push(searchParam, searchParam, searchParam);
   }
 
@@ -175,8 +175,8 @@ router.get("/trash", authenticate, async (req: any, res) => {
 
   if (search) {
     const searchParam = `%${search}%`;
-    query += " AND (company LIKE ? OR contact_name LIKE ? OR problem LIKE ?)";
-    countQuery += " AND (company LIKE ? OR contact_name LIKE ? OR problem LIKE ?)";
+    query += " AND (company ILIKE ? OR contact_name ILIKE ? OR problem ILIKE ?)";
+    countQuery += " AND (company ILIKE ? OR contact_name ILIKE ? OR problem ILIKE ?)";
     params.push(searchParam, searchParam, searchParam);
   }
 

@@ -28,13 +28,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 5000);
+    setToasts((prev) => {
+      // Prevent duplicate identical toast if already visible
+      if (prev.some((t) => t.message === message && t.type === type)) {
+        return prev;
+      }
+      const id = Math.random().toString(36).substring(2, 9);
+      setTimeout(() => {
+        setToasts((current) => current.filter((toast) => toast.id !== id));
+      }, 4000);
+      return [...prev, { id, message, type }];
+    });
   }, []);
 
   const removeToast = useCallback((id: string) => {

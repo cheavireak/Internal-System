@@ -36,8 +36,8 @@ router.get("/", authenticate, async (req: any, res) => {
         if (value) {
           // Allow alphanumeric and underscores for column names to prevent SQL injection
           if (/^[a-zA-Z0-9_]+$/.test(key)) {
-            query += ` AND ${key} LIKE ?`;
-            countQuery += ` AND ${key} LIKE ?`;
+            query += ` AND ${key} ILIKE ?`;
+            countQuery += ` AND ${key} ILIKE ?`;
             params.push(`%${value}%`);
           }
         }

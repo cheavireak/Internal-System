@@ -22,8 +22,7 @@ export default function CreateEditKPI() {
     resolved_same_day: "Y"
   });
 
-  // Copied state
-  const [copiedInfo, setCopiedInfo] = useState<{ id: number | string; originalDate?: string; company?: string } | null>(null);
+  const hasAppliedInitialCopy = useRef(false);
 
   // Companies autocomplete list from report list
   const [companies, setCompanies] = useState<string[]>([]);
@@ -123,28 +122,25 @@ export default function CreateEditKPI() {
           });
         })
         .catch(err => console.error("Error fetching record for edit:", err));
-    } else if (location.state?.copyRecord) {
-      // Direct copy passed via router state
-      const rec = location.state.copyRecord;
-      applyCopiedRecord(rec);
-    } else if (copyFromId) {
-      // Copy via URL parameter
-      fetch(`/api/kpi/${copyFromId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-      })
-        .then(res => res.json())
-        .then(data => {
-          applyCopiedRecord(data);
+    } else if (!hasAppliedInitialCopy.current) {
+      if (location.state?.copyRecord) {
+        hasAppliedInitialCopy.current = true;
+        applyCopiedRecord(location.state.copyRecord);
+      } else if (copyFromId) {
+        hasAppliedInitialCopy.current = true;
+        fetch(`/api/kpi/${copyFromId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
         })
-        .catch(err => console.error("Error fetching record to copy:", err));
+          .then(res => res.json())
+          .then(data => {
+            applyCopiedRecord(data);
+          })
+          .catch(err => console.error("Error fetching record to copy:", err));
+      }
     }
   }, [id, location.search, location.state]);
 
   const applyCopiedRecord = (rec: any) => {
-    let origDate = rec.create_date;
-    if (origDate && typeof origDate === "string" && origDate.includes("T")) {
-      origDate = origDate.split("T")[0];
-    }
     setFormData({
       create_date: new Date().toISOString().split("T")[0],
       company: rec.company || "",
@@ -156,11 +152,6 @@ export default function CreateEditKPI() {
       resolve_time: rec.resolve_time || "15mn",
       solution: rec.solution || "",
       resolved_same_day: rec.resolved_same_day || "Y"
-    });
-    setCopiedInfo({
-      id: rec.id,
-      originalDate: origDate,
-      company: rec.company
     });
     showToast(`Data pre-filled from KPI record #${rec.id} (${rec.company || 'Unknown'})`, "info");
   };
@@ -178,7 +169,6 @@ export default function CreateEditKPI() {
       solution: "",
       resolved_same_day: "Y"
     });
-    setCopiedInfo(null);
   };
 
   // Open copy modal to search past records
@@ -321,43 +311,6 @@ export default function CreateEditKPI() {
             </button>
           )}
         </div>
-
-        {/* Copied Banner */}
-        {copiedInfo && (
-          <div className="mb-6 p-4 bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 rounded-lg flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-md mt-0.5">
-                <Copy className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-indigo-950 dark:text-indigo-200">
-                  Pre-filled with data copied from Record #{copiedInfo.id} ({copiedInfo.company || 'Unnamed Company'})
-                </p>
-                <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-1">
-                  All fields have been filled with the selected record&apos;s details. Date is set to today ({formData.create_date}). You can edit any value before saving.
-                  {copiedInfo.originalDate && copiedInfo.originalDate !== formData.create_date && (
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, create_date: copiedInfo.originalDate! })}
-                      className="ml-2 underline hover:text-indigo-900 dark:hover:text-white font-medium"
-                    >
-                      Use original date ({copiedInfo.originalDate})
-                    </button>
-                  )}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 shrink-0 px-2 py-1 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
-              title="Clear all fields"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Reset
-            </button>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -579,14 +532,7 @@ export default function CreateEditKPI() {
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div>
-              {copiedInfo && (
-                <span className="text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1 font-medium">
-                  <Check className="w-3.5 h-3.5" />
-                  Duplicating from Record #{copiedInfo.id}
-                </span>
-              )}
-            </div>
+            <div></div>
             <div className="flex gap-3">
               <button 
                 type="button" 
@@ -599,7 +545,7 @@ export default function CreateEditKPI() {
                 type="submit" 
                 className="px-5 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700 transition-colors shadow-sm"
               >
-                {id ? "Save Changes" : (copiedInfo ? "Create Record (Copied)" : "Save Record")}
+                {id ? "Save Changes" : "Save Record"}
               </button>
             </div>
           </div>
