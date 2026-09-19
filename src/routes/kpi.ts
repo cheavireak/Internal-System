@@ -18,8 +18,8 @@ const sanitizeDate = (val: any) => {
 };
 
 router.get("/", authenticate, async (req: any, res) => {
-  const { month, page = 1, search } = req.query;
-  const pageSize = 10;
+  const { month, page = 1, search, limit } = req.query;
+  const pageSize = limit ? Math.min(parseInt(limit), 200) : 10;
   const offset = (page - 1) * pageSize;
 
   let query = "SELECT * FROM kpi_records WHERE deleted_at IS NULL";
@@ -265,6 +265,24 @@ router.get("/export", authenticate, async (req: any, res) => {
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="KPI_Report_${month || 'All'}.xlsx"`);
   res.send(buffer);
+});
+
+router.get("/companies", authenticate, async (req: any, res) => {
+  try {
+    const customers = await db.prepare("SELECT DISTINCT customer_name as name FROM customers WHERE deleted_at IS NULL AND customer_name IS NOT NULL AND customer_name != ''").all() as any[];
+    const kpiCompanies = await db.prepare("SELECT DISTINCT company as name FROM kpi_records WHERE deleted_at IS NULL AND company IS NOT NULL AND company != ''").all() as any[];
+    const smsSenders = await db.prepare("SELECT DISTINCT sender as name FROM sms_logs WHERE sender IS NOT NULL AND sender != ''").all() as any[];
+
+    const set = new Set<string>();
+    customers.forEach((c: any) => { if (c.name?.trim()) set.add(c.name.trim()); });
+    kpiCompanies.forEach((k: any) => { if (k.name?.trim()) set.add(k.name.trim()); });
+    smsSenders.forEach((s: any) => { if (s.name?.trim()) set.add(s.name.trim()); });
+
+    const list = Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    res.json(list);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.get("/:id", authenticate, async (req: any, res) => {

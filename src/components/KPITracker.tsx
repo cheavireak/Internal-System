@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Download, Search, Trash2, Edit2, ChevronLeft, ChevronRight, RefreshCw, Upload, RotateCcw, AlertTriangle } from "lucide-react";
+import { Plus, Download, Search, Trash2, Edit2, ChevronLeft, ChevronRight, RefreshCw, Upload, RotateCcw, AlertTriangle, Copy, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import * as xlsx from "xlsx";
 import { useToast } from "../contexts/ToastContext";
@@ -15,6 +15,11 @@ export default function KPITracker() {
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const { showToast } = useToast();
+
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [copySearch, setCopySearch] = useState("");
+  const [copyRecordsList, setCopyRecordsList] = useState<any[]>([]);
+  const [isCopyLoading, setIsCopyLoading] = useState(false);
 
   const formatDate = (dateStr: any) => {
     if (!dateStr) return "-";
@@ -380,6 +385,39 @@ export default function KPITracker() {
     });
   };
 
+  const handleOpenCopyModal = async () => {
+    setShowCopyModal(true);
+    setIsCopyLoading(true);
+    try {
+      const res = await fetch("/api/kpi?limit=50", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCopyRecordsList(data.records || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCopyLoading(false);
+    }
+  };
+
+  const handleSearchCopyRecords = async (query: string) => {
+    setCopySearch(query);
+    try {
+      const res = await fetch(`/api/kpi?limit=50&search=${encodeURIComponent(query)}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCopyRecordsList(data.records || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
@@ -416,6 +454,14 @@ export default function KPITracker() {
               <button onClick={exportExcel} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors text-sm font-medium flex items-center shadow-sm">
                 <Download className="w-4 h-4 mr-2" />
                 Export Excel
+              </button>
+              <button 
+                onClick={handleOpenCopyModal} 
+                className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors text-sm font-medium flex items-center shadow-sm"
+                title="Copy an existing KPI record to Add KPI Record"
+              >
+                <Copy className="w-4 h-4 mr-2 text-indigo-600 dark:text-indigo-400" />
+                Copy KPI Record
               </button>
               <button onClick={() => navigate("/kpi/create")} className="bg-indigo-600 dark:bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors text-sm font-medium flex items-center shadow-sm">
                 <Plus className="w-4 h-4 mr-2" />
@@ -576,6 +622,13 @@ export default function KPITracker() {
                     <td className="px-3 py-4 whitespace-nowrap text-sm text-right">
                       {viewMode === 'active' ? (
                         <>
+                          <button 
+                            onClick={() => navigate(`/kpi/create?copyFrom=${r.id}`, { state: { copyRecord: r } })} 
+                            className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3" 
+                            title="Copy Record to Add KPI Record"
+                          >
+                            <Copy size={16} />
+                          </button>
                           <button onClick={() => navigate(`/kpi/edit/${r.id}`)} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3" title="Edit"><Edit2 size={16} /></button>
                           <button onClick={() => handleDelete(r.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300" title="Move to Trash"><Trash2 size={16} /></button>
                         </>
@@ -604,6 +657,104 @@ export default function KPITracker() {
           </div>
         </div>
       </div>
+
+      {/* Copy KPI Record Modal */}
+      {showCopyModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-[70] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Copy className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  Copy KPI Record
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Select any record to load into Add KPI Record with all data pre-filled
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowCopyModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/50 dark:bg-gray-900/30">
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by company, contact name, or problem..."
+                  value={copySearch}
+                  onChange={e => handleSearchCopyRecords(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {isCopyLoading ? (
+                <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Loading KPI records...
+                </div>
+              ) : copyRecordsList.length === 0 ? (
+                <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No KPI records found.
+                </div>
+              ) : (
+                copyRecordsList.map(rec => (
+                  <div 
+                    key={rec.id}
+                    className="p-3 bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-indigo-400 dark:hover:border-indigo-600 transition-all flex items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-gray-900 dark:text-white truncate">
+                          {rec.company || "Unnamed Company"}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded font-medium">
+                          {rec.problem_type || "Support"}
+                        </span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          {formatDate(rec.create_date)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-1">
+                        <strong className="text-gray-500 dark:text-gray-400 font-normal">Contact:</strong> {rec.contact_name || "-"} ({rec.contact_by || "Telegram"})
+                        {rec.problem && <> • <strong className="text-gray-500 dark:text-gray-400 font-normal">Problem:</strong> {rec.problem}</>}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCopyModal(false);
+                        navigate(`/kpi/create?copyFrom=${rec.id}`, { state: { copyRecord: rec } });
+                      }}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium flex items-center gap-1.5 shrink-0 shadow-xs"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      Copy Record
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCopyModal(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
